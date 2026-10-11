@@ -5,3 +5,9 @@ coverage/
 .env.local
 *.log
 .DS_Store
+
+# Emails written locally when SMTP_URL is not set
+server/.mail-outbox/
+
+# Local HTTPS certificate for phone testing (made by mkcert)
+client/.cert/
