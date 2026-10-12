@@ -4,11 +4,15 @@ export function Spinner({ className = 'h-5 w-5' }) {
   return <Loader2 className={`animate-spin ${className}`} aria-hidden />;
 }
 
-export function PageLoader({ label = 'Loading…' }) {
+export function PageLoader({ label = 'Loading' }) {
   return (
-    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-500" role="status">
-      <Spinner className="h-8 w-8 text-brand-600" />
-      <span className="text-sm">{label}</span>
+    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4" role="status">
+      <span className="flex gap-1" aria-hidden>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span key={i} className="h-3 w-3 animate-pulse-dot rounded-t-[4px] rounded-b-[1px] bg-signal" style={{ animationDelay: `${i * 0.15}s` }} />
+        ))}
+      </span>
+      <span className="eyebrow">{label.replace(/…$/, '')}…</span>
     </div>
   );
 }
@@ -16,12 +20,12 @@ export function PageLoader({ label = 'Loading…' }) {
 export function ErrorState({ error, onRetry, title = 'Something went wrong' }) {
   const notFound = error?.status === 404;
   return (
-    <div className="card mx-auto my-10 max-w-md p-8 text-center" role="alert">
-      <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" aria-hidden />
-      <h2 className="mt-3 text-lg font-semibold">{notFound ? 'Not found' : title}</h2>
-      <p className="mt-1 text-sm text-slate-600">{error?.message ?? 'Please try again.'}</p>
+    <div className="mx-auto my-12 max-w-md border-l-2 border-warn bg-ink-900 p-8" role="alert">
+      <AlertTriangle className="h-6 w-6 text-warn" aria-hidden />
+      <h2 className="display mt-4 text-3xl">{notFound ? 'Not found' : title}</h2>
+      <p className="mt-2 text-sm text-muted">{error?.message ?? 'Please try again.'}</p>
       {onRetry && !notFound && (
-        <button type="button" className="btn-secondary mt-5" onClick={onRetry}>Try again</button>
+        <button type="button" className="btn-secondary mt-6" onClick={onRetry}>Try again</button>
       )}
     </div>
   );
@@ -29,29 +33,32 @@ export function ErrorState({ error, onRetry, title = 'Something went wrong' }) {
 
 export function EmptyState({ icon: Icon = Inbox, title, children, action }) {
   return (
-    <div className="card flex flex-col items-center px-6 py-14 text-center">
-      <Icon className="h-10 w-10 text-slate-300" aria-hidden />
-      <h3 className="mt-3 font-semibold text-slate-800">{title}</h3>
-      {children && <p className="mt-1 max-w-sm text-sm text-slate-500">{children}</p>}
-      {action && <div className="mt-5">{action}</div>}
+    <div className="flex flex-col items-center border border-dashed border-line-strong px-6 py-16 text-center">
+      <Icon className="h-8 w-8 text-faint" strokeWidth={1.5} aria-hidden />
+      <h3 className="display mt-4 text-2xl">{title}</h3>
+      {children && <p className="mt-2 max-w-sm text-sm text-muted">{children}</p>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }
 
 const BADGE = {
-  draft: 'bg-slate-100 text-slate-700',
-  published: 'bg-emerald-50 text-emerald-700',
-  cancelled: 'bg-rose-50 text-rose-700',
-  paid: 'bg-emerald-50 text-emerald-700',
-  refunded: 'bg-amber-50 text-amber-700',
-  valid: 'bg-emerald-50 text-emerald-700',
-  used: 'bg-sky-50 text-sky-700',
-  ended: 'bg-slate-100 text-slate-600',
+  draft: 'text-muted before:bg-faint',
+  published: 'text-go before:bg-go',
+  cancelled: 'text-stop before:bg-stop',
+  paid: 'text-go before:bg-go',
+  refunded: 'text-warn before:bg-warn',
+  valid: 'text-go before:bg-go',
+  used: 'text-sky-300 before:bg-sky-300',
+  ended: 'text-muted before:bg-faint',
 };
 
 export function Badge({ status, children }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${BADGE[status] ?? BADGE.draft}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border border-current/25 px-2 py-0.5 font-mono text-[10.5px] font-medium tracking-[0.08em] uppercase
+        before:h-1.5 before:w-1.5 before:rounded-full ${BADGE[status] ?? BADGE.draft}`}
+    >
       {children ?? status}
     </span>
   );
@@ -59,5 +66,18 @@ export function Badge({ status, children }) {
 
 export function FieldError({ message }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs text-rose-600">{message}</p>;
+  return <p className="mt-1.5 text-xs text-stop">{message}</p>;
+}
+
+export function Notice({ tone = 'warn', children, className = '' }) {
+  const tones = {
+    warn: 'border-warn text-warn',
+    stop: 'border-stop text-stop',
+    info: 'border-signal text-fg',
+  };
+  return (
+    <div className={`border-l-2 bg-ink-900 px-4 py-3 text-sm ${tones[tone]} ${className}`} role="status">
+      <span className="text-fg/90">{children}</span>
+    </div>
+  );
 }
