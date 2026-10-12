@@ -16,12 +16,12 @@ export function ConfirmDialog({ open, title, children, confirmLabel = 'Confirm',
       ref={ref}
       onClose={onClose}
       onCancel={(e) => { if (busy) e.preventDefault(); }}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl p-0 shadow-xl backdrop:bg-slate-900/40"
+      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-[4px] border border-line-strong bg-ink-900 p-0 text-fg shadow-2xl shadow-black/60 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     >
       <div className="p-6">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <div className="mt-2 text-sm text-slate-600">{children}</div>
-        <div className="mt-6 flex justify-end gap-2">
+        <h2 className="display text-3xl">{title}</h2>
+        <div className="mt-3 text-sm leading-relaxed text-muted">{children}</div>
+        <div className="mt-8 flex justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>{cancelLabel}</button>
           <button type="button" className={danger ? 'btn-danger' : 'btn-primary'} onClick={onConfirm} disabled={busy}>
             {busy && <Spinner className="h-4 w-4" />} {confirmLabel}
