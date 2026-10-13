@@ -14,6 +14,7 @@ const seatSchema = new mongoose.Schema(
     label: { type: String, required: true }, // e.g. "B12"
     tier: { type: String, required: true },
     price: { type: Number, required: true },
+    accessible: { type: Boolean, default: false }, // wheelchair space
     status: { type: String, enum: SEAT_STATUS, default: 'available' },
     hold: { type: mongoose.Schema.Types.ObjectId, ref: 'Hold', default: null },
     holdExpiresAt: { type: Date, default: null },
