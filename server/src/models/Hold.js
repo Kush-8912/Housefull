@@ -12,6 +12,8 @@ const holdSchema = new mongoose.Schema(
     seats: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Seat' }],
     expiresAt: { type: Date, required: true },
     status: { type: String, enum: HOLD_STATUS, default: 'active' },
+    promoCode: { type: String, default: null }, // applied at checkout, re-validated there
+    addons: [{ _id: false, addon: { type: mongoose.Schema.Types.ObjectId, ref: 'Addon' }, qty: Number }],
   },
   { timestamps: true, versionKey: false },
 );

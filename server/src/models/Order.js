@@ -18,7 +18,29 @@ const orderSchema = new mongoose.Schema(
     event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true, index: true },
     hold: { type: mongoose.Schema.Types.ObjectId, ref: 'Hold', required: true },
     items: [itemSchema],
-    amount: { type: Number, required: true, min: 0 }, // whole INR, snapshotted at purchase
+    subtotal: { type: Number, min: 0 }, // face value of the seats
+    discount: { type: Number, min: 0, default: 0 },
+    promo: {
+      id: { type: mongoose.Schema.Types.ObjectId, ref: 'PromoCode' },
+      code: String,
+    },
+    addons: [
+      {
+        _id: false,
+        addon: { type: mongoose.Schema.Types.ObjectId, ref: 'Addon' },
+        name: String,
+        price: Number,
+        qty: Number,
+      },
+    ],
+    addonsTotal: { type: Number, min: 0, default: 0 },
+    bookingFee: { type: Number, min: 0, default: 0 }, // platform convenience fee
+    gst: { type: Number, min: 0, default: 0 }, // GST on the booking fee
+    amount: { type: Number, required: true, min: 0 }, // whole INR charged, snapshotted at purchase
+    refundedAmount: { type: Number, min: 0, default: 0 },
+    // Each automatic email goes out at most once per order.
+    reminderSentAt: { type: Date, default: null },
+    feedbackRequestedAt: { type: Date, default: null },
     status: { type: String, enum: ORDER_STATUS, default: 'pending' },
     // Client-generated key; retries of the same checkout return the same order.
     idempotencyKey: { type: String, required: true },
