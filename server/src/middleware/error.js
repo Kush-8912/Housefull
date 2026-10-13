@@ -21,6 +21,9 @@ export function errorHandler(err, req, res, _next) {
     status = 409;
     const field = Object.keys(err.keyPattern ?? {})[0] ?? 'value';
     body = { error: { message: `That ${field} is already in use`, code: 'DUPLICATE' } };
+  } else if (err.type === 'entity.too.large') {
+    status = 413;
+    body = { error: { message: 'That file is too large', code: 'TOO_LARGE' } };
   } else if (err.type === 'entity.parse.failed') {
     status = 400;
     body = { error: { message: 'Malformed JSON body', code: 'BAD_JSON' } };
