@@ -39,8 +39,9 @@ export function verifyToken(token) {
 export async function requireAuth(req, _res, next) {
   const payload = verifyToken(req.cookies?.[AUTH_COOKIE]);
   if (!payload) return next(AppError.unauthorized());
-  const user = await User.findById(payload.sub);
-  if (!user) return next(AppError.unauthorized('Your session is no longer valid. Please log in again.'));
+  const user = await User.findById(payload.sub).select('+passwordChangedAt');
+  const revoked = user?.passwordChangedAt && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000);
+  if (!user || revoked) return next(AppError.unauthorized('Your session is no longer valid. Please log in again.'));
   req.user = user;
   next();
 }
