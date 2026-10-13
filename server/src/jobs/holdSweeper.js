@@ -3,6 +3,7 @@ import { Order } from '../models/Order.js';
 import { Seat } from '../models/Seat.js';
 import { releaseHold } from '../services/holdService.js';
 import { emitSeatChanges } from '../realtime/bus.js';
+import { notifyWaitlistLater } from '../services/waitlistService.js';
 
 const STUCK_CHECKOUT_MS = 10 * 60_000;
 
@@ -31,6 +32,7 @@ async function recoverStuckCheckouts(now) {
     const seats = await Seat.find({ hold: hold._id, status: 'held' }, { _id: 1 }).lean();
     await Seat.updateMany({ hold: hold._id, status: 'held' }, { status: 'available', hold: null, holdExpiresAt: null });
     emitSeatChanges(hold.event, seats.map((s) => ({ id: s._id, status: 'available' })));
+    notifyWaitlistLater(hold.event);
     recovered += 1;
   }
   return recovered;
