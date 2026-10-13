@@ -17,3 +17,11 @@ export function emitSeatChanges(eventId, seats) {
 export function emitCheckin(eventId, checkin) {
   io?.to(eventRoom(eventId)).emit('checkin', { eventId: String(eventId), ...checkin });
 }
+
+export const userRoom = (userId) => `user:${userId}`;
+// People currently looking at an event's public page.
+export const viewersRoom = (eventId) => `viewers:${eventId}`;
+
+export function emitToUser(userId, name, payload) {
+  io?.to(userRoom(userId)).emit(name, payload);
+}
