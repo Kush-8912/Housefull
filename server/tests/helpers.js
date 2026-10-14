@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../src/app.js';
+import { backgroundIdle } from '../src/utils/background.js';
 
 let mongod;
 
@@ -12,15 +13,20 @@ export async function startDb() {
 }
 
 export async function stopDb() {
+  await backgroundIdle();
   await mongoose.disconnect();
   await mongod?.stop();
 }
 
 export async function clearDb() {
+  await backgroundIdle(); // emails / waitlist alerts from the previous test
   await Promise.all(Object.values(mongoose.connection.collections).map((c) => c.deleteMany({})));
 }
 
 export const app = createApp();
+
+// Meets the password rules: 8+ characters, an uppercase letter, a special character.
+export const TEST_PASSWORD = 'Password123!';
 
 let counter = 0;
 // Returns a supertest agent that keeps the auth cookie, plus the created user.
@@ -29,7 +35,7 @@ export async function signUp(role = 'attendee') {
   const agent = request.agent(app);
   const res = await agent
     .post('/api/auth/register')
-    .send({ name: `${role} ${counter}`, email: `${role}${counter}@test.dev`, password: 'password123', role });
+    .send({ name: `${role} ${counter}`, email: `${role}${counter}@test.dev`, password: TEST_PASSWORD, role });
   if (res.status !== 201) throw new Error(`signup failed: ${JSON.stringify(res.body)}`);
   return { agent, user: res.body.user };
 }
