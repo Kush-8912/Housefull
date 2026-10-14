@@ -1,12 +1,18 @@
 import { Hold } from '../models/Hold.js';
 import { Seat } from '../models/Seat.js';
 import { Order } from '../models/Order.js';
-import { Ticket } from '../models/Ticket.js';
+import { Ticket, SEAT_ORDER } from '../models/Ticket.js';
 import { Event } from '../models/Event.js';
 import { AppError } from '../utils/AppError.js';
 import { emitSeatChanges } from '../realtime/bus.js';
 import * as payments from './paymentService.js';
 import { releaseHold } from './holdService.js';
+import { findUsablePromo, discountFor, redeemPromo, releasePromo } from './promoService.js';
+import { notifyWaitlistLater } from './waitlistService.js';
+import { resolveAddonLines, linesTotal, reserveAddons, releaseAddons } from './addonService.js';
+import { bill, attendeeRefundFor } from './pricing.js';
+import { sendMail } from './mailer.js';
+import { orderConfirmationEmail } from './emails.js';
 
 // Attendees can cancel for a refund until this long before the event starts.
 export const CANCELLATION_CUTOFF_HOURS = 24;
@@ -14,7 +20,9 @@ export const CANCELLATION_CUTOFF_HOURS = 24;
 const CHECKOUT_GRACE_MS = 2 * 60_000;
 
 async function orderWithTickets(order) {
-  const tickets = await Ticket.find({ order: order._id }).sort({ label: 1 });
+  // Only the buyer's own tickets: a ticket they've since transferred has a new
+  // owner whose QR code must not be returned to them.
+  const tickets = await Ticket.find({ order: order._id, user: order.user }).sort({ label: 1 }).collation(SEAT_ORDER);
   return { order, tickets };
 }
 
@@ -50,7 +58,8 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
   }
 
   const event = await Event.findById(hold.event);
-  if (!event?.isOnSale()) {
+  // The hold was granted while sales were open; it can be paid for until the show starts.
+  if (!event?.isUpcoming()) {
     await releaseHold(hold, 'released');
     throw AppError.conflict('Tickets for this event are no longer on sale', { code: 'NOT_ON_SALE' });
   }
@@ -69,13 +78,41 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
   const seats = await Seat.find({ _id: { $in: locked.seats }, hold: locked._id, status: 'held' }).sort({ row: 1, number: 1 });
 
   const unlock = (status) => Hold.updateOne({ _id: locked._id, status: 'converting' }, { status });
+  // Back out of a checkout that didn't happen: the buyer keeps their hold, but
+  // the grace period is not a free extension of it.
+  const abandon = () => Promise.all([
+    unlock('active'),
+    Seat.updateMany({ hold: locked._id, status: 'held' }, { holdExpiresAt: locked.expiresAt }),
+  ]);
   if (seats.length !== locked.seats.length) {
     await unlock('expired');
     await Seat.updateMany({ hold: locked._id, status: 'held' }, { status: 'available', hold: null, holdExpiresAt: null });
+    notifyWaitlistLater(locked.event);
     throw AppError.gone('Some of your seats were released. Please pick your seats again.', { code: 'HOLD_EXPIRED' });
   }
 
-  const amount = seats.reduce((sum, s) => sum + s.price, 0);
+  const subtotal = seats.reduce((sum, s) => sum + s.price, 0);
+  let promo = null;
+  if (locked.promoCode) {
+    try {
+      promo = await findUsablePromo(locked.event, locked.promoCode, now);
+    } catch (err) {
+      await abandon();
+      throw err;
+    }
+  }
+  const discount = promo ? discountFor(promo, subtotal) : 0;
+
+  let addonLines;
+  try {
+    addonLines = await resolveAddonLines(locked.event, locked.addons);
+  } catch (err) {
+    await abandon();
+    throw err;
+  }
+  const priced = bill({ ticketsSubtotal: subtotal, discount, addonsTotal: linesTotal(addonLines) });
+  const amount = priced.total;
+
   let order;
   try {
     order = await Order.create({
@@ -83,37 +120,59 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
       event: locked.event,
       hold: locked._id,
       items: seats.map((s) => ({ seat: s._id, label: s.label, tier: s.tier, price: s.price })),
+      subtotal,
+      discount,
+      promo: promo ? { id: promo._id, code: promo.code } : undefined,
+      addons: addonLines,
+      addonsTotal: priced.addonsTotal,
+      bookingFee: priced.bookingFee,
+      gst: priced.gst,
       amount,
       idempotencyKey,
     });
   } catch (err) {
-    await unlock('active');
+    await abandon();
     if (err?.code === 11000) throw AppError.conflict('This payment is still being processed', { code: 'CHECKOUT_IN_PROGRESS' });
     throw err;
   }
+  const fail = (reason) => Order.updateOne({ _id: order._id }, { status: 'failed', failureReason: reason });
 
-  // 1. Take payment (free events skip the processor).
+  if (amount > 0 && !card) {
+    await Promise.all([abandon(), fail('Card details are required')]);
+    throw AppError.badRequest('Card details are required', { code: 'CARD_REQUIRED' });
+  }
+
+  // 1. Redeem the promo code and take add-on stock (after the order exists,
+  //    so a retried request with the same idempotency key can't do it twice).
+  if (promo) {
+    try {
+      await redeemPromo(promo, now);
+    } catch (err) {
+      await Promise.all([abandon(), fail(err.message)]);
+      throw err;
+    }
+  }
+  try {
+    await reserveAddons(addonLines);
+  } catch (err) {
+    await Promise.all([abandon(), fail(err.message), releasePromo(promo?._id)]);
+    throw err;
+  }
+  const giveBack = () => Promise.all([releasePromo(promo?._id), releaseAddons(addonLines)]);
+
+  // 2. Take payment (free orders skip the processor).
   let paid = { chargeId: null, last4: null };
   if (amount > 0) {
-    if (!card) {
-      await Promise.all([unlock('active'), Order.updateOne({ _id: order._id }, { status: 'failed', failureReason: 'Card details are required' })]);
-      throw AppError.badRequest('Card details are required', { code: 'CARD_REQUIRED' });
-    }
     try {
       paid = await payments.charge({ amount, card, idempotencyKey: `${user._id}:${idempotencyKey}` });
     } catch (err) {
       const reason = err instanceof payments.PaymentError ? err.message : 'Payment could not be completed';
-      await Promise.all([
-        Order.updateOne({ _id: order._id }, { status: 'failed', failureReason: reason }),
-        unlock('active'),
-        // restore the original expiry so the grace period isn't a free extension
-        Seat.updateMany({ hold: locked._id, status: 'held' }, { holdExpiresAt: locked.expiresAt }),
-      ]);
+      await Promise.all([fail(reason), abandon(), giveBack()]);
       throw new AppError(402, reason, { code: 'PAYMENT_FAILED', details: { reason: err.code } });
     }
   }
 
-  // 2. Mark seats sold — only if they are still ours.
+  // 3. Mark seats sold — only if they are still ours.
   const sold = await Seat.updateMany(
     { _id: { $in: seats.map((s) => s._id) }, hold: locked._id, status: 'held' },
     { status: 'sold', order: order._id, hold: null, holdExpiresAt: null },
@@ -122,15 +181,16 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
     // Should be unreachable thanks to the lock + grace window, but never keep
     // money for seats we can't deliver.
     await Seat.updateMany({ order: order._id, status: 'sold' }, { status: 'available', order: null });
-    const refund = paid.chargeId ? await payments.refund({ chargeId: paid.chargeId }) : {};
+    const refund = paid.chargeId ? await payments.refund({ chargeId: paid.chargeId, amount }) : {};
     await Promise.all([
-      Order.updateOne({ _id: order._id }, { status: 'refunded', failureReason: 'Seats became unavailable', 'payment.refundId': refund.refundId }),
+      Order.updateOne({ _id: order._id }, { status: 'refunded', failureReason: 'Seats became unavailable', 'payment.refundId': refund.refundId, refundedAmount: amount }),
       unlock('expired'),
+      giveBack(),
     ]);
     throw AppError.conflict('Your seats became unavailable during payment. You have been refunded.', { code: 'SEATS_UNAVAILABLE' });
   }
 
-  // 3. Issue tickets and finalise.
+  // 4. Issue tickets and finalise.
   const tickets = await Ticket.insertMany(
     seats.map((s) => ({ order: order._id, event: locked.event, user: user._id, seat: s._id, label: s.label, tier: s.tier, price: s.price })),
   );
@@ -141,10 +201,13 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
   await unlock('converted');
 
   emitSeatChanges(locked.event, seats.map((s) => ({ id: s._id, status: 'sold' })));
+  sendMail(() => orderConfirmationEmail({ user, event, order, tickets }));
   return { order, tickets, replayed: false };
 }
 
 // Refund an order, void its tickets and (optionally) put seats back on sale.
+// An attendee's own cancellation keeps the booking fee; an organizer
+// cancelling the event refunds everything.
 async function refundOrder(order, { by, reopenSeats }) {
   const claimed = await Order.findOneAndUpdate(
     { _id: order._id, status: 'paid' },
@@ -153,18 +216,22 @@ async function refundOrder(order, { by, reopenSeats }) {
   );
   if (!claimed) return null;
 
-  if (claimed.payment?.chargeId) {
-    const { refundId } = await payments.refund({ chargeId: claimed.payment.chargeId });
+  const refundAmount = by === 'attendee' ? attendeeRefundFor(claimed) : claimed.amount;
+  if (claimed.payment?.chargeId && refundAmount > 0) {
+    const { refundId } = await payments.refund({ chargeId: claimed.payment.chargeId, amount: refundAmount });
     claimed.payment.refundId = refundId;
+    claimed.refundedAmount = refundAmount;
     claimed.status = 'refunded';
     await claimed.save();
   }
-  await Ticket.updateMany({ order: claimed._id }, { status: 'cancelled' });
+  await Ticket.updateMany({ order: claimed._id, status: 'valid' }, { status: 'cancelled' });
+  await Promise.all([releasePromo(claimed.promo?.id), releaseAddons(claimed.addons)]);
 
   if (reopenSeats) {
     const seatIds = claimed.items.map((i) => i.seat);
     await Seat.updateMany({ _id: { $in: seatIds }, order: claimed._id, status: 'sold' }, { status: 'available', order: null });
     emitSeatChanges(claimed.event, seatIds.map((id) => ({ id, status: 'available' })));
+    notifyWaitlistLater(claimed.event);
   }
   return claimed;
 }
@@ -181,6 +248,9 @@ export async function cancelOrderByAttendee({ user, orderId }) {
   }
   if (await Ticket.exists({ order: order._id, checkedInAt: { $ne: null } })) {
     throw AppError.conflict('Tickets that have been checked in cannot be refunded');
+  }
+  if (await Ticket.exists({ order: order._id, status: 'transferred' })) {
+    throw AppError.conflict('Orders with transferred tickets can\u2019t be cancelled', { code: 'HAS_TRANSFERS' });
   }
 
   const refunded = await refundOrder(order, { by: 'attendee', reopenSeats: true });
