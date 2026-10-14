@@ -11,6 +11,8 @@ import mongoose from 'mongoose';
 import { env, isProd } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { apiRouter } from './routes/index.js';
+import { Event } from './models/Event.js';
+import { renderEventPage } from './services/sharePreview.js';
 
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
 
@@ -46,6 +48,17 @@ export function createApp() {
   // In production the API also serves the built React app, so the whole
   // product is one origin: no cross-site cookie or CORS configuration needed.
   if (isProd && fs.existsSync(clientDist)) {
+    const indexHtml = fs.readFileSync(path.join(clientDist, 'index.html'), 'utf8');
+    // Event links get their own title, description and image for link previews.
+    app.get('/events/:id', async (req, res, next) => {
+      try {
+        const event = /^[a-f\d]{24}$/i.test(req.params.id) ? await Event.findById(req.params.id, 'title startsAt venue coverImageUrl status') : null;
+        if (!event || event.status === 'draft') return next();
+        res.set('Cache-Control', 'no-cache').type('html').send(renderEventPage(indexHtml, event, env.APP_URL));
+      } catch (err) {
+        next(err);
+      }
+    });
     app.use(express.static(clientDist, { maxAge: '1h', index: false }));
     app.get(/^(?!\/api|\/socket\.io).*/, (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
   }
