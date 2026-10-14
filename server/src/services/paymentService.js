@@ -53,7 +53,8 @@ export async function charge({ amount, card, idempotencyKey }) {
   return result;
 }
 
-export async function refund({ chargeId }) {
+// Full or partial refund; `amount` defaults to the whole charge, like a real gateway.
+export async function refund({ chargeId, amount }) {
   await sleep(LATENCY_MS / 2);
-  return { refundId: `re_${crypto.randomBytes(10).toString('hex')}`, chargeId };
+  return { refundId: `re_${crypto.randomBytes(10).toString('hex')}`, chargeId, amount };
 }
