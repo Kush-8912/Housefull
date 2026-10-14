@@ -3,6 +3,7 @@ import { Hold } from '../models/Hold.js';
 import { Seat, claimableFilter } from '../models/Seat.js';
 import { AppError } from '../utils/AppError.js';
 import { emitSeatChanges } from '../realtime/bus.js';
+import { notifyWaitlistLater } from './waitlistService.js';
 
 const RELEASED_SEAT = { status: 'available', hold: null, holdExpiresAt: null };
 
@@ -16,17 +17,23 @@ const RELEASED_SEAT = { status: 'available', hold: null, holdExpiresAt: null };
  * ones we did get are handed back (all-or-nothing from the buyer's view).
  */
 export async function createHold({ user, event, seatIds }) {
-  if (!event.isOnSale()) throw AppError.conflict('Tickets for this event are no longer on sale', { code: 'NOT_ON_SALE' });
+  if (!event.isOnSale()) {
+    const notYet = event.status === 'published' && event.salesStartAt && new Date() < event.salesStartAt;
+    throw AppError.conflict(notYet ? 'Ticket sales for this event haven’t opened yet' : 'Tickets for this event are no longer on sale', { code: notYet ? 'SALES_NOT_OPEN' : 'NOT_ON_SALE' });
+  }
 
   const uniqueIds = [...new Set(seatIds.map(String))];
   if (uniqueIds.length === 0) throw AppError.badRequest('Select at least one seat');
-  if (uniqueIds.length > env.MAX_SEATS_PER_HOLD) {
-    throw AppError.badRequest(`You can hold at most ${env.MAX_SEATS_PER_HOLD} seats at a time`);
+  const limit = Math.min(event.maxPerOrder ?? env.MAX_SEATS_PER_HOLD, env.MAX_SEATS_PER_HOLD);
+  if (uniqueIds.length > limit) {
+    throw AppError.badRequest(`You can pick at most ${limit} seat${limit === 1 ? '' : 's'} per order for this event`, { code: 'TOO_MANY_SEATS' });
   }
 
   // Changing your selection replaces your previous hold for this event.
   const previous = await Hold.findOne({ user: user._id, event: event._id, status: 'active' });
-  if (previous) await releaseHold(previous, 'released');
+  // The waitlist is checked after the new claim instead: if the buyer re-picks
+  // the same seats nothing was really freed, and nobody should be alerted.
+  if (previous) await releaseHold(previous, 'released', { notifyWaitlist: false });
 
   const now = new Date();
   const expiresAt = new Date(now.getTime() + env.HOLD_TTL_MINUTES * 60_000);
@@ -55,6 +62,7 @@ export async function createHold({ user, event, seatIds }) {
     const gotIds = results.filter(Boolean).map((s) => s._id);
     await Seat.updateMany({ _id: { $in: gotIds }, hold: hold._id }, RELEASED_SEAT);
     await Hold.updateOne({ _id: hold._id }, { status: 'released' });
+    notifyWaitlistLater(event._id);
 
     const failed = await Seat.find({ _id: { $in: failedIds }, event: event._id }, { label: 1 }).lean();
     const unknown = failedIds.length - failed.length;
@@ -66,6 +74,7 @@ export async function createHold({ user, event, seatIds }) {
   }
 
   emitSeatChanges(event._id, uniqueIds.map((id) => ({ id, status: 'held' })));
+  if (previous) notifyWaitlistLater(event._id);
   return hold;
 }
 
@@ -75,7 +84,7 @@ export async function createHold({ user, event, seatIds }) {
  * Seats are matched by hold id, so a seat that has since been re-claimed by
  * someone else after expiry is never touched.
  */
-export async function releaseHold(hold, reason = 'released') {
+export async function releaseHold(hold, reason = 'released', { notifyWaitlist = true } = {}) {
   const transitioned = await Hold.findOneAndUpdate({ _id: hold._id, status: 'active' }, { status: reason });
   if (!transitioned) return false;
 
@@ -83,6 +92,7 @@ export async function releaseHold(hold, reason = 'released') {
   if (seats.length) {
     await Seat.updateMany({ _id: { $in: seats.map((s) => s._id) }, hold: hold._id, status: 'held' }, RELEASED_SEAT);
     emitSeatChanges(hold.event, seats.map((s) => ({ id: s._id, status: 'available' })));
+    if (notifyWaitlist) notifyWaitlistLater(hold.event);
   }
   return true;
 }
