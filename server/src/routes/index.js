@@ -5,6 +5,7 @@ import { eventHoldsRouter, holdsRouter } from './holds.routes.js';
 import { checkoutRouter, ordersRouter } from './orders.routes.js';
 import { organizerEventRouter } from './organizer.routes.js';
 import { notificationsRouter } from './notifications.routes.js';
+import { usersRouter } from './users.routes.js';
 
 export const apiRouter = Router();
 
@@ -16,3 +17,4 @@ apiRouter.use('/holds/:id/checkout', checkoutRouter);
 apiRouter.use('/holds', holdsRouter);
 apiRouter.use('/orders', ordersRouter);
 apiRouter.use('/notifications', notificationsRouter);
+apiRouter.use('/users', usersRouter);
