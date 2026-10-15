@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { Order } from '../models/Order.js';
-import { Ticket } from '../models/Ticket.js';
+import { Ticket, SEAT_ORDER } from '../models/Ticket.js';
 import { validate } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { checkout, cancelOrderByAttendee, CANCELLATION_CUTOFF_HOURS } from '../services/orderService.js';
-import { qrPayloadFor } from '../services/ticketSigner.js';
+import { qrPayloadFor, qrUrlFor } from '../services/ticketSigner.js';
 
 const cardSchema = z.object({
   number: z.string().trim().regex(/^[\d ]{13,23}$/, 'Card number must be 13–19 digits'),
@@ -27,7 +27,11 @@ checkoutRouter.post('/', requireAuth, validate(z.object({ card: cardSchema.optio
   res.status(replayed ? 200 : 201).json({ order, tickets: tickets.map(withQr), replayed });
 }));
 
-const withQr = (t) => ({ ...(t.toJSON?.() ?? t), qr: t.status === 'valid' ? qrPayloadFor(t._id) : null });
+// qr is the bare signed code (for copying); qrUrl is what the printed QR encodes.
+const withQr = (t) => {
+  const valid = t.status === 'valid';
+  return { ...(t.toJSON?.() ?? t), qr: valid ? qrPayloadFor(t._id) : null, qrUrl: valid ? qrUrlFor(t._id) : null };
+};
 
 // Mounted at /api/orders
 export const ordersRouter = Router();
@@ -35,19 +39,35 @@ export const ordersRouter = Router();
 ordersRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id, status: { $in: ['paid', 'cancelled', 'refunded'] } })
     .sort({ createdAt: -1 })
-    .populate('event', 'title venue startsAt status category coverImageUrl');
-  const tickets = await Ticket.find({ order: { $in: orders.map((o) => o._id) } }).sort({ label: 1 });
+    .populate('event', 'title venue startsAt durationMinutes description status category coverImageUrl');
+  // Only tickets this user holds: after a transfer the recipient's new ticket
+  // shares the order, and its QR code must never be shown to the sender.
+  const tickets = await Ticket.find({ order: { $in: orders.map((o) => o._id) }, user: req.user._id })
+    .sort({ label: 1 }).collation(SEAT_ORDER)
+    .populate('transferredTo', 'name');
   const byOrder = Map.groupBy(tickets, (t) => String(t.order));
+
+  // Tickets other people sent to this user, grouped by event.
+  const received = await Ticket.find({ user: req.user._id, transferredFrom: { $ne: null }, order: { $nin: orders.map((o) => o._id) } })
+    .sort({ label: 1 }).collation(SEAT_ORDER)
+    .populate('event', 'title venue startsAt durationMinutes description status category coverImageUrl')
+    .populate({ path: 'transferredFrom', select: 'user', populate: { path: 'user', select: 'name' } });
+  const receivedByEvent = [...Map.groupBy(received, (t) => String(t.event._id)).values()].map((ts) => ({
+    event: ts[0].event,
+    tickets: ts.map((t) => ({ ...withQr(t), event: undefined, transferredFrom: undefined, from: t.transferredFrom?.user?.name ?? null })),
+  }));
+
   res.json({
     cancellationCutoffHours: CANCELLATION_CUTOFF_HOURS,
     items: orders.map((o) => ({ ...o.toJSON(), tickets: (byOrder.get(String(o._id)) ?? []).map(withQr) })),
+    received: receivedByEvent,
   });
 }));
 
 ordersRouter.get('/:id', requireAuth, asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id).populate('event', 'title venue startsAt status');
   if (!order || !order.user.equals(req.user._id)) throw AppError.notFound('Order');
-  const tickets = await Ticket.find({ order: order._id }).sort({ label: 1 });
+  const tickets = await Ticket.find({ order: order._id, user: req.user._id }).sort({ label: 1 }).collation(SEAT_ORDER).populate('transferredTo', 'name');
   res.json({ order, tickets: tickets.map(withQr) });
 }));
 
