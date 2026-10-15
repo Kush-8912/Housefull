@@ -69,3 +69,21 @@ authRouter.patch('/me', requireAuth, validate(z.object({ name: nameField })), as
 authRouter.get('/me/profile', requireAuth, asyncHandler(async (req, res) => {
   res.json(await profileSummary(req.user));
 }));
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password'),
+  newPassword: newPasswordField,
+}).refine((b) => b.currentPassword !== b.newPassword, { path: ['newPassword'], message: 'Choose a password different from your current one' });
+
+// Signs out every other device; this one gets a fresh session.
+authRouter.post('/password', authLimiter, requireAuth, validate(passwordSchema), asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('+passwordHash');
+  if (!(await user.verifyPassword(req.body.currentPassword))) {
+    throw new AppError(400, 'Your current password is incorrect', { code: 'WRONG_PASSWORD', details: [{ field: 'currentPassword', message: 'Incorrect password' }] });
+  }
+  user.passwordHash = await User.hashPassword(req.body.newPassword);
+  user.passwordChangedAt = new Date();
+  await user.save();
+  setAuthCookie(res, signToken(user));
+  res.status(204).end();
+}));
