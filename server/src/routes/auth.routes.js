@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
+import { Avatar } from '../models/Avatar.js';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { User, ROLES } from '../models/User.js';
@@ -86,4 +87,34 @@ authRouter.post('/password', authLimiter, requireAuth, validate(passwordSchema),
   await user.save();
   setAuthCookie(res, signToken(user));
   res.status(204).end();
+}));
+
+// Real image files start with these bytes; checking them means a renamed
+// script or SVG can't be stored and served back as a "photo".
+const IMAGE_SIGNATURES = {
+  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  'image/webp': (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP',
+};
+const MAX_AVATAR_BYTES = 300 * 1024;
+
+// The body is the image itself (Content-Type: image/jpeg|png|webp), already
+// cropped and resized by the browser.
+authRouter.put('/me/avatar', requireAuth, express.raw({ type: Object.keys(IMAGE_SIGNATURES), limit: MAX_AVATAR_BYTES }), asyncHandler(async (req, res) => {
+  const type = req.get('content-type')?.split(';')[0].trim().toLowerCase();
+  const data = req.body;
+  if (!Buffer.isBuffer(data) || !data.length || !IMAGE_SIGNATURES[type]?.(data)) {
+    throw AppError.badRequest('Upload a JPEG, PNG or WebP image', { code: 'BAD_IMAGE' });
+  }
+  await Avatar.findOneAndUpdate({ user: req.user._id }, { data, contentType: type }, { upsert: true });
+  req.user.avatarUpdatedAt = new Date();
+  await req.user.save();
+  res.json({ user: req.user });
+}));
+
+authRouter.delete('/me/avatar', requireAuth, asyncHandler(async (req, res) => {
+  await Avatar.deleteOne({ user: req.user._id });
+  req.user.avatarUpdatedAt = null;
+  await req.user.save();
+  res.json({ user: req.user });
 }));
