@@ -9,6 +9,8 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { checkInTicket } from '../services/checkinService.js';
 import { eventStats } from '../services/statsService.js';
+import { eventReport } from '../services/reportService.js';
+import { sendRemindersNow } from '../jobs/eventEmails.js';
 import { PromoCode, PROMO_KINDS } from '../models/PromoCode.js';
 import { normalizeCode, seriesEventIds } from '../services/promoService.js';
 import { Addon } from '../models/Addon.js';
@@ -34,6 +36,18 @@ organizerEventRouter.post('/:id/checkin', owner, validate(z.object({ qr: z.strin
 
 organizerEventRouter.get('/:id/stats', owner, asyncHandler(async (req, res) => {
   res.json({ stats: await eventStats(req.event) });
+}));
+
+// Email every ticket holder who hasn't had a reminder yet, without waiting for
+// the automatic one the day before.
+organizerEventRouter.post('/:id/reminders', owner, asyncHandler(async (req, res) => {
+  if (!req.event.isUpcoming()) throw AppError.conflict('Reminders can only be sent before the event starts', { code: 'NOT_UPCOMING' });
+  res.json(await sendRemindersNow(req.event));
+}));
+
+// The after-show report: attendance, arrivals, sales and feedback.
+organizerEventRouter.get('/:id/report', owner, asyncHandler(async (req, res) => {
+  res.json({ report: await eventReport(req.event) });
 }));
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
