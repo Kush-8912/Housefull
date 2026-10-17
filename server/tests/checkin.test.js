@@ -81,6 +81,45 @@ describe('check-in', () => {
   });
 });
 
+describe('scan links', () => {
+  it('admits from the printed scan link and names the account holder', async () => {
+    const org = await signUp('organizer');
+    const buyer = await signUp();
+    const { id, seats } = await publishedEvent(org);
+    const { tickets } = await buyTickets(buyer, id, seats.slice(0, 1));
+    expect(tickets[0].qrUrl).toMatch(new RegExp(`/scan/${tickets[0].qr.replace(/\./g, '\\.')}$`));
+
+    const res = await org.agent.post('/api/tickets/checkin').send({ qr: tickets[0].qrUrl }).expect(200);
+    expect(res.body.checkin).toMatchObject({ label: seats[0].label, attendee: buyer.user.name, attendeeEmail: buyer.user.email });
+    expect(res.body.checkin.event.id).toBe(id);
+
+    const again = await org.agent.post('/api/tickets/checkin').send({ qr: tickets[0].qr }).expect(409);
+    expect(again.body.error.code).toBe('ALREADY_CHECKED_IN');
+  });
+
+  it('the in-event scanner also accepts scan links', async () => {
+    const org = await signUp('organizer');
+    const buyer = await signUp();
+    const { id, seats } = await publishedEvent(org);
+    const { tickets } = await buyTickets(buyer, id, seats.slice(0, 1));
+    await org.agent.post(`/api/events/${id}/checkin`).send({ qr: tickets[0].qrUrl }).expect(200);
+  });
+
+  it('only the event’s organizer can use a scan link', async () => {
+    const org = await signUp('organizer');
+    const rival = await signUp('organizer');
+    const buyer = await signUp();
+    const { id, seats } = await publishedEvent(org);
+    const { tickets } = await buyTickets(buyer, id, seats.slice(0, 1));
+
+    const res = await rival.agent.post('/api/tickets/checkin').send({ qr: tickets[0].qrUrl }).expect(403);
+    expect(res.body.error.code).toBe('NOT_YOUR_EVENT');
+    await buyer.agent.post('/api/tickets/checkin').send({ qr: tickets[0].qrUrl }).expect(403);
+    await request(app).post('/api/tickets/checkin').send({ qr: tickets[0].qrUrl }).expect(401);
+    expect((await org.agent.post('/api/tickets/checkin').send({ qr: 'https://evil.example/scan/nope' })).body.error.code).toBe('INVALID_TICKET');
+  });
+});
+
 describe('organizer stats', () => {
   it('reports sales, revenue per tier, refunds and check-ins', async () => {
     const org = await signUp('organizer');
