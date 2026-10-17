@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { Event } from '../models/Event.js';
-import { Ticket } from '../models/Ticket.js';
+import { Ticket, SEAT_ORDER } from '../models/Ticket.js';
 import { User } from '../models/User.js';
 import { validate } from '../middleware/validate.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -29,7 +29,7 @@ const loadOwnedEvent = asyncHandler(async (req, _res, next) => {
 });
 const owner = [requireAuth, requireRole('organizer'), loadOwnedEvent];
 
-organizerEventRouter.post('/:id/checkin', owner, validate(z.object({ qr: z.string().trim().min(1, 'Scan or enter a ticket code').max(200) })), asyncHandler(async (req, res) => {
+organizerEventRouter.post('/:id/checkin', owner, validate(z.object({ qr: z.string().trim().min(1, 'Scan or enter a ticket code').max(300) })), asyncHandler(async (req, res) => {
   const result = await checkInTicket({ event: req.event, qr: req.body.qr, staff: req.user });
   res.json({ checkin: result });
 }));
@@ -154,6 +154,28 @@ organizerEventRouter.get('/:id/attendees', owner, validate(z.object({ q: z.strin
     const users = await User.find({ $or: [{ name: rx }, { email: rx }] }, '_id').limit(200);
     filter.$or = [{ label: new RegExp(`^${escapeRegex(q)}`, 'i') }, { user: { $in: users.map((u) => u._id) } }];
   }
-  const tickets = await Ticket.find(filter, 'label tier price checkedInAt user order').populate('user', 'name email').sort({ label: 1 }).limit(500);
+  const tickets = await Ticket.find(filter, 'label tier price checkedInAt user order').populate('user', 'name email').sort({ label: 1 }).collation(SEAT_ORDER).limit(500);
   res.json({ items: tickets });
+}));
+
+// Spreadsheet apps execute cells that start with these characters as formulas.
+const csvCell = (v) => {
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+organizerEventRouter.get('/:id/attendees.csv', owner, asyncHandler(async (req, res) => {
+  const tickets = await Ticket.find({ event: req.event._id, status: 'valid' }, 'label tier price checkedInAt user order')
+    .populate('user', 'name email').sort({ label: 1 }).collation(SEAT_ORDER).lean();
+  const header = ['Seat', 'Tier', 'Price (INR)', 'Name', 'Email', 'Order', 'Checked in at (UTC)'];
+  const lines = tickets.map((t) => [
+    t.label, t.tier, t.price, t.user?.name, t.user?.email, String(t.order).slice(-8).toUpperCase(),
+    t.checkedInAt ? t.checkedInAt.toISOString() : '',
+  ].map(csvCell).join(','));
+  const slug = req.event.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'event';
+  res.set('Content-Type', 'text/csv; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="${slug}-guests.csv"`);
+  // BOM so Excel reads names with non-ASCII characters correctly.
+  res.send(`\uFEFF${[header.join(','), ...lines].join('\r\n')}\r\n`);
 }));
