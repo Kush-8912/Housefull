@@ -11,6 +11,7 @@ import { checkInTicket } from '../services/checkinService.js';
 import { eventStats } from '../services/statsService.js';
 import { PromoCode, PROMO_KINDS } from '../models/PromoCode.js';
 import { normalizeCode, seriesEventIds } from '../services/promoService.js';
+import { Addon } from '../models/Addon.js';
 
 // Mounted at /api/events — organizer-only operations on one event. Guards are
 // attached per route (not router.use) so public /events/:id stays public.
@@ -80,6 +81,51 @@ organizerEventRouter.delete('/:id/promos/:promoId', owner, validate(promoParams,
   if (!promo) throw AppError.notFound('Promo code');
   if (promo.uses > 0) throw AppError.conflict('This code has been used. Switch it off instead of deleting it.', { code: 'PROMO_IN_USE' });
   await promo.deleteOne();
+  res.status(204).end();
+}));
+
+// ---- Add-ons (food & merch) ----------------------------------------------
+
+const stockSchema = z.number().int().min(1, 'Stock must be at least 1').max(100000).nullable();
+const addonBody = z.object({
+  name: z.string().trim().min(2, 'Name is required').max(60),
+  description: z.string().trim().max(200).default(''),
+  kind: z.enum(['food', 'merch']).default('food'),
+  price: z.number('Enter a price').int('Use whole rupees').min(1, 'Price must be at least \u20b91').max(100000),
+  stock: stockSchema.default(null),
+  maxPerOrder: z.number().int().min(1).max(20).default(10),
+});
+const addonParams = z.object({ id: z.string(), addonId: z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id') });
+
+organizerEventRouter.get('/:id/addons', owner, asyncHandler(async (req, res) => {
+  res.json({ items: await Addon.find({ event: req.event._id }).sort({ createdAt: 1 }) });
+}));
+
+organizerEventRouter.post('/:id/addons', owner, validate(addonBody), asyncHandler(async (req, res) => {
+  if (req.event.status === 'cancelled') throw AppError.conflict('This event has been cancelled');
+  if ((await Addon.countDocuments({ event: req.event._id })) >= 20) throw AppError.badRequest('An event can have at most 20 add-ons');
+  res.status(201).json({ addon: await Addon.create({ ...req.body, event: req.event._id }) });
+}));
+
+// Price is fixed once something has sold (past orders keep their snapshot,
+// but changing it under buyers mid-checkout would be confusing).
+organizerEventRouter.patch('/:id/addons/:addonId', owner, validate(addonParams, 'params'),
+  validate(z.object({ active: z.boolean(), stock: stockSchema }).partial()), asyncHandler(async (req, res) => {
+    const addon = await Addon.findOne({ _id: req.params.addonId, event: req.event._id });
+    if (!addon) throw AppError.notFound('Add-on');
+    if (req.body.stock != null && req.body.stock < addon.sold) {
+      throw AppError.badRequest(`${addon.sold} already sold; stock can't be lower than that`, { code: 'VALIDATION_ERROR', details: [{ field: 'stock', message: `At least ${addon.sold}` }] });
+    }
+    Object.assign(addon, req.body);
+    await addon.save();
+    res.json({ addon });
+  }));
+
+organizerEventRouter.delete('/:id/addons/:addonId', owner, validate(addonParams, 'params'), asyncHandler(async (req, res) => {
+  const addon = await Addon.findOne({ _id: req.params.addonId, event: req.event._id });
+  if (!addon) throw AppError.notFound('Add-on');
+  if (addon.sold > 0) throw AppError.conflict('This add-on has been sold. Switch it off instead.', { code: 'ADDON_IN_USE' });
+  await addon.deleteOne();
   res.status(204).end();
 }));
 
