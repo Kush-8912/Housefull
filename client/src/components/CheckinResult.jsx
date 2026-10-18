@@ -1,4 +1,5 @@
 import { time } from '../lib/format';
+import { Avatar } from './Avatar';
 
 export const CHECKIN_MESSAGES = {
   ALREADY_CHECKED_IN: 'Already used',
@@ -33,14 +34,14 @@ function Mark({ ok }) {
  */
 export function CheckinResult({ result, className = '' }) {
   if (result.ok) {
-    const initials = (result.attendee ?? '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
     return (
       <div key={result.at} className={`flex flex-col items-center justify-center bg-go p-8 text-center text-ink ${className}`} role="status">
         <Mark ok />
         <p className="mt-3 font-mono text-xs font-semibold uppercase tracking-[0.16em]">Verified · Admit</p>
 
         <div className="mt-6 flex animate-rise items-center gap-3 [animation-delay:450ms]">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-sm font-semibold text-go" aria-hidden>{initials}</span>
+          {/* The photo lets door staff check the person matches the account. */}
+          <Avatar name={result.attendee} src={result.attendeeAvatarUrl} className={`bg-ink font-mono font-semibold text-go ${result.attendeeAvatarUrl ? 'h-16 w-16 ring-2 ring-ink' : 'h-12 w-12 text-sm'}`} />
           <span className="min-w-0 text-left">
             <span className="block truncate text-2xl font-bold leading-tight">{result.attendee ?? 'Unknown account'}</span>
             {result.attendeeEmail && <span className="block truncate text-sm opacity-75">{result.attendeeEmail}</span>}

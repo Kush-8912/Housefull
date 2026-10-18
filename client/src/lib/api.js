@@ -16,15 +16,17 @@ export class ApiError extends Error {
   }
 }
 
+// A Blob/File body (e.g. a photo) is sent as-is with its own type; anything else as JSON.
 export async function api(path, { method = 'GET', body, headers = {}, signal } = {}) {
+  const raw = body instanceof Blob;
   let res;
   try {
     res = await fetch(`/api${path}`, {
       method,
       credentials: 'include',
       signal,
-      headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers: { ...(body !== undefined ? { 'Content-Type': raw ? body.type : 'application/json' } : {}), ...headers },
+      body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
     });
   } catch (err) {
     if (err.name === 'AbortError') throw err;
