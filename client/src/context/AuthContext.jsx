@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
+import { reconnectSocket } from '../lib/socket';
 
 const AuthContext = createContext(null);
 
@@ -32,7 +33,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, register, logout }), [user, loading, login, register, logout]);
+  // Re-identify the live connection whenever the signed-in account changes.
+  const userId = user?._id;
+  useEffect(() => {
+    if (!loading) reconnectSocket();
+  }, [userId, loading]);
+
+  // After the profile page saves account changes.
+  const updateUser = useCallback((u) => setUser(u), []);
+
+  const value = useMemo(() => ({ user, loading, login, register, logout, updateUser }), [user, loading, login, register, logout, updateUser]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
