@@ -40,6 +40,19 @@ describe('findBestSeats', () => {
     expect(labels(findBestSeats({ ...h, count: 2 }))).toEqual(['A2', 'A3']);
   });
 
+  it('never puts a block across an aisle', () => {
+    const h = house([['A', 6, 'X']]);
+    h.rows[0].aisleAfter = [3]; // A1 A2 A3 | A4 A5 A6
+    expect(labels(findBestSeats({ ...h, count: 3 }))).toEqual(['A1', 'A2', 'A3']);
+    expect(findBestSeats({ ...h, count: 4 })).toBe(null);
+  });
+
+  it('skips blocked spots, which have no seat', () => {
+    const h = house([['A', 5, 'X']]);
+    h.seats = h.seats.filter((s) => s.label !== 'A3'); // A3 is a pillar
+    expect(labels(findBestSeats({ ...h, count: 2 }))).toEqual(['A1', 'A2']);
+  });
+
   it('returns null when no block that size exists', () => {
     const h = house([['A', 5, 'X']], ['A3']);
     expect(findBestSeats({ ...h, count: 3 })).toBe(null);

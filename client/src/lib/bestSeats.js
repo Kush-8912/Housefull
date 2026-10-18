@@ -21,8 +21,10 @@ export function findBestSeats({ rows, seats, count, tier = null }) {
       const block = inRow.slice(i, i + count);
       if (!block.every(isFree)) continue;
       if (tier && !block.every((s) => s.tier === tier)) continue;
-      // Side by side means consecutive seat numbers, not just neighbours in the list.
+      // Side by side means consecutive seat numbers, not just neighbours in the
+      // list (blocked spots leave gaps), and no walkway in between.
       if (block.at(-1).number - block[0].number !== count - 1) continue;
+      if (row.aisleAfter?.some((a) => a >= block[0].number && a < block.at(-1).number)) continue;
 
       const mid = (block[0].number + block.at(-1).number) / 2;
       const score = rowIndex * ROW_WEIGHT + Math.abs(mid - centre);
