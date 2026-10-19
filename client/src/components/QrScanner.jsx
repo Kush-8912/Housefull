@@ -1,6 +1,23 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, CameraOff } from 'lucide-react';
+import { Spinner } from './States';
+
+// Why the camera didn't start, in words door staff can act on. Browsers report
+// the reason as a DOMException name; html5-qrcode sometimes wraps it in a string.
+function cameraProblem(err) {
+  const raw = `${err?.name ?? ''} ${err?.message ?? err ?? ''}`;
+  if (/NotAllowed|Permission|denied/i.test(raw)) {
+    return 'Camera access is blocked for this site. Tap the icon next to the address bar, allow the camera, then tap Start camera again.';
+  }
+  if (/NotReadable|TrackStart|Could not start/i.test(raw)) {
+    return 'The camera is busy. Close other apps or tabs using it (video calls, the camera app) and try again.';
+  }
+  if (/NotFound|Overconstrained|DevicesNotFound|no camera/i.test(raw)) {
+    return 'No camera was found on this device. Enter ticket codes manually below.';
+  }
+  return `The camera couldn't start (${raw.trim().slice(0, 120) || 'unknown error'}). Enter ticket codes manually below.`;
+}
 
 /**
  * Camera QR scanner. The camera reports the same code many times per second,
@@ -17,42 +34,57 @@ export function QrScanner({ onScan, paused }) {
     pausedRef.current = paused;
     onScanRef.current = onScan;
   });
-  const [active, setActive] = useState(false);
+  const [state, setState] = useState('off'); // off | starting | on
   const [error, setError] = useState(null);
 
   const stop = async () => {
     const s = scannerRef.current;
     scannerRef.current = null;
-    setActive(false);
+    setState('off');
     if (s) {
       try { await s.stop(); s.clear(); } catch { /* already stopped */ }
     }
   };
 
+  const onDecode = (text) => {
+    const now = Date.now();
+    if (pausedRef.current) return;
+    if (text === lastRef.current.code && now - lastRef.current.at < 3000) return;
+    lastRef.current = { code: text, at: now };
+    onScanRef.current(text);
+  };
+
   const start = async () => {
+    if (state !== 'off') return;
     setError(null);
+    // Browsers only offer the camera on secure pages (https, or localhost).
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setError('This browser only allows the camera on a secure (https) page. Open SeatLock over https, or enter ticket codes manually below.');
+      return;
+    }
+    setState('starting');
     const scanner = new Html5Qrcode(regionId, { verbose: false });
     scannerRef.current = scanner;
+    // A square scan box at 70% of the shorter side, whatever the screen size.
+    const config = { fps: 10, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } };
     try {
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 220, height: 220 } },
-        (text) => {
-          const now = Date.now();
-          if (pausedRef.current) return;
-          if (text === lastRef.current.code && now - lastRef.current.at < 3000) return;
-          lastRef.current = { code: text, at: now };
-          onScanRef.current(text);
-        },
-        () => {},
-      );
-      setActive(true);
+      try {
+        await scanner.start({ facingMode: 'environment' }, config, onDecode, () => {});
+      } catch (first) {
+        // Some phones and laptops reject "back camera"; fall back to any camera they list.
+        if (/NotAllowed|Permission|denied/i.test(`${first?.name} ${first?.message ?? first}`)) throw first;
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras.length) throw first;
+        const back = cameras.find((c) => /back|rear|environment/i.test(c.label)) ?? cameras.at(-1);
+        await scanner.start(back.id, config, onDecode, () => {});
+      }
+      setState('on');
     } catch (err) {
+      console.error('[QrScanner] camera failed to start:', err);
       scannerRef.current = null;
-      const msg = String(err?.message ?? err);
-      setError(/permission|NotAllowed/i.test(msg)
-        ? 'Camera access was blocked. Allow camera permission in your browser, or enter codes manually below.'
-        : 'No camera available on this device. Enter ticket codes manually below.');
+      try { scanner.clear(); } catch { /* nothing rendered */ }
+      setState('off');
+      setError(cameraProblem(err));
     }
   };
 
@@ -60,21 +92,28 @@ export function QrScanner({ onScan, paused }) {
 
   return (
     <div>
-      <div id={regionId} className={`mx-auto w-full max-w-sm overflow-hidden rounded-xl bg-slate-900 ${active ? '' : 'hidden'}`} />
-      {!active && (
-        <div className="flex aspect-square w-full max-w-sm flex-col items-center justify-center rounded-xl bg-slate-100 mx-auto text-slate-500">
-          <Camera className="h-10 w-10" aria-hidden />
-          <p className="mt-2 text-sm">Camera is off</p>
-        </div>
-      )}
-      <div className="mt-3 flex justify-center">
-        {active ? (
-          <button type="button" className="btn-secondary" onClick={stop}><CameraOff className="h-4 w-4" aria-hidden /> Stop camera</button>
-        ) : (
-          <button type="button" className="btn-primary" onClick={start}><Camera className="h-4 w-4" aria-hidden /> Start camera</button>
+      {/* The scanner draws into this box, so it stays laid out (never display:none) and the video gets its real width. */}
+      <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-[4px] bg-black">
+        <div id={regionId} className="h-full w-full [&_video]:h-full [&_video]:w-full [&_video]:object-cover" />
+        {state !== 'on' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink text-faint">
+            <span className="absolute left-6 top-6 h-8 w-8 border-l-2 border-t-2 border-line-strong" aria-hidden />
+            <span className="absolute right-6 top-6 h-8 w-8 border-r-2 border-t-2 border-line-strong" aria-hidden />
+            <span className="absolute bottom-6 left-6 h-8 w-8 border-b-2 border-l-2 border-line-strong" aria-hidden />
+            <span className="absolute bottom-6 right-6 h-8 w-8 border-b-2 border-r-2 border-line-strong" aria-hidden />
+            {state === 'starting' ? <Spinner className="h-8 w-8" /> : <Camera className="h-8 w-8" strokeWidth={1.5} aria-hidden />}
+            <p className="eyebrow mt-3">{state === 'starting' ? 'Starting camera…' : 'Camera off'}</p>
+          </div>
         )}
       </div>
-      {error && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">{error}</p>}
+      <div className="mt-4 flex justify-center">
+        {state === 'on' ? (
+          <button type="button" className="btn-secondary" onClick={stop}><CameraOff className="h-4 w-4" aria-hidden /> Stop camera</button>
+        ) : (
+          <button type="button" className="btn-primary" onClick={start} disabled={state === 'starting'}><Camera className="h-4 w-4" aria-hidden /> Start camera</button>
+        )}
+      </div>
+      {error && <p className="mt-4 border-l-2 border-warn bg-ink px-3 py-2 text-sm text-fg/90" role="alert">{error}</p>}
     </div>
   );
 }
