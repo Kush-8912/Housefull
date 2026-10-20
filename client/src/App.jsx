@@ -48,10 +48,13 @@ export default function App() {
 
 function NotFound() {
   return (
-    <div className="py-20 text-center">
-      <p className="text-5xl font-bold text-slate-300">404</p>
-      <h1 className="mt-2 text-xl font-semibold">Page not found</h1>
-      <Link to="/" className="btn-primary mt-6">Back to events</Link>
+    <div className="py-16">
+      <p className="eyebrow">Error 404 · row ?, seat ?</p>
+      <h1 className="display mt-4 text-[clamp(4rem,14vw,10rem)] text-fg">
+        No such<br /><span className="text-signal">seat.</span>
+      </h1>
+      <p className="mt-6 max-w-md text-muted">The page you&apos;re looking for doesn&apos;t exist, or it moved.</p>
+      <Link to="/" className="btn-primary mt-8">Back to events</Link>
     </div>
   );
 }
