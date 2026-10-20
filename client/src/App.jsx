@@ -7,6 +7,7 @@ import { LoginPage, RegisterPage } from './pages/AuthPages';
 import { EventPage } from './pages/EventPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderPage, TicketsPage } from './pages/TicketsPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { PageLoader } from './components/States';
 
 // Organizer screens pull in charts and the camera scanner; buyers never need them.
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="checkout/:holdId" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
         <Route path="orders/:id" element={<RequireAuth><OrderPage /></RequireAuth>} />
         <Route path="tickets" element={<RequireAuth><TicketsPage /></RequireAuth>} />
+        <Route path="profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
 
         <Route path="organizer" element={organizer(<OrganizerHome />)} />
         <Route path="organizer/events/new" element={organizer(<EventEditor />)} />
