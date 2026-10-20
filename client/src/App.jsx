@@ -14,6 +14,7 @@ import { PageLoader } from './components/States';
 // Organizer screens pull in charts and the camera scanner; buyers never need them.
 const OrganizerHome = lazy(() => import('./pages/organizer/OrganizerHome').then((m) => ({ default: m.OrganizerHome })));
 const EventEditor = lazy(() => import('./pages/organizer/EventEditor').then((m) => ({ default: m.EventEditor })));
+const ScanPage = lazy(() => import('./pages/organizer/ScanPage').then((m) => ({ default: m.ScanPage })));
 const ManageEvent = lazy(() => import('./pages/organizer/ManageEvent').then((m) => ({ default: m.ManageEvent })));
 
 const organizer = (page) => <RequireAuth role="organizer"><Suspense fallback={<PageLoader />}>{page}</Suspense></RequireAuth>;
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="organizer/events/new" element={organizer(<EventEditor />)} />
         <Route path="organizer/events/:id/edit" element={organizer(<EventEditor />)} />
         <Route path="organizer/events/:id" element={organizer(<ManageEvent />)} />
+        <Route path="scan/:code" element={organizer(<ScanPage />)} />
 
         <Route path="*" element={<NotFound />} />
       </Route>
