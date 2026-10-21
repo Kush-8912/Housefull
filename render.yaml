@@ -21,3 +21,7 @@ services:
         generateValue: true
       - key: HOLD_TTL_MINUTES
         value: "8"
+      - key: APP_URL
+        sync: false # your Render URL, for links in emails
+      - key: SMTP_URL
+        sync: false # optional: SMTP credentials to actually send email
