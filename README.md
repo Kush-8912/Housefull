@@ -269,6 +269,7 @@ All variables live in `server/.env` (template: [`server/.env.example`](server/.e
 | `SMTP_URL` | no | — | e.g. `smtps://user:pass@smtp.example.com:465`. Without it, development writes each email to `server/.mail-outbox/*.eml` (open with any mail app) instead of sending |
 | `BOOKING_FEE_PERCENT` | no | `5` | Booking fee on tickets (after discounts); 18% GST is added on the fee. `0` turns it off |
 | `MAIL_FROM` | no | `Housefull <tickets@housefull.dev>` | Sender address for emails |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | no | — | Turns on Razorpay checkout (see [Payments](#payments-razorpay-or-the-demo-processor)). Without them the demo card processor is used |
 | `GOOGLE_CLIENT_ID` | no | — | Turns on **Continue with Google** (see [Google sign-in](#google-sign-in)). Without it the button is hidden |
 
 Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. `.env` is git-ignored; no secrets are committed.
@@ -294,6 +295,17 @@ A first Google sign-in creates an account (with the role picked on the sign-up p
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the server test suite, then the client lint and build on every push.
 
 > Render's free tier sleeps after inactivity, so the first request can take around 30 seconds.
+
+## Payments: Razorpay or the demo processor
+
+With `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` set (test keys, `rzp_test_…`), checkout goes through **Razorpay**:
+
+1. The server creates a Razorpay order for the exact bill (tickets, promo, add-ons, fee, GST).
+2. The buyer pays in Razorpay's own window (card, UPI, netbanking, wallet), so payment details never touch Housefull.
+3. The server verifies Razorpay's HMAC signature, checks the payment belongs to *this* hold's order and is for the full amount, captures it if needed, and only then issues tickets ([`razorpay.js`](server/src/services/razorpay.js)).
+4. If anything fails after Razorpay took the money (the hold expired mid-payment, the price changed, seats clashed), the payment is refunded automatically. One payment can never pay for two orders. Cancellations and cancelled shows refund through Razorpay's API.
+
+Razorpay test mode: card `4386 2894 0766 0153` (any future expiry, CVV and OTP) or UPI `success@razorpay`. Without Razorpay keys, the demo processor below is used, with the same seat-locking, idempotency and refund behaviour.
 
 ## Test cards
 
@@ -353,7 +365,7 @@ housefull/
 
 ## Known limitations and next steps
 
-- **Payments are mocked.** `paymentService.js` mirrors a real gateway's contract, so integrating Stripe or Razorpay would replace only that file and move card entry to the provider's hosted fields (card data should not touch our server in production).
+- **Razorpay without webhooks.** Payments are confirmed when the browser returns from Razorpay's window; if a buyer closes the tab in that exact moment, the payment is captured without an order. Production would add Razorpay's `payment.captured` webhook to reconcile or refund those.
 - **Single-instance realtime.** Running several server instances would need the Socket.IO Redis adapter so broadcasts reach every instance.
 - **Email needs an SMTP provider in production.** Without `SMTP_URL`, emails are written to local `.eml` files. Sending is fire-and-forget (a mail outage never blocks a checkout), so there are no retries yet; a queue would add those.
 - **One organizer account per event.** There's no separate door-staff role yet; the organizer scans tickets.

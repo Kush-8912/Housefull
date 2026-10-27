@@ -29,5 +29,9 @@ services:
         sync: false # the address emails come from, e.g. Housefull <housefull.tickets@gmail.com>
       - key: GOOGLE_CLIENT_ID
         sync: false # optional: turns on "Continue with Google"
+      - key: RAZORPAY_KEY_ID
+        sync: false # optional: Razorpay test keys turn on real Razorpay checkout
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false # optional: Claude writes reminder emails, feedback questions and insights
