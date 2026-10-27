@@ -53,7 +53,7 @@ export function ProfilePage() {
         <h2 id="settings" className="display text-4xl">Account</h2>
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
           <NameForm />
-          <PasswordForm />
+          {user.hasPassword === false ? <GoogleOnly /> : <PasswordForm />}
         </div>
       </section>
     </div>
@@ -217,6 +217,16 @@ function NameForm() {
       </div>
       <button className="btn-primary mt-5" disabled={busy || unchanged || !name.trim()}>{busy && <Spinner className="h-4 w-4" />} Save name</button>
     </form>
+  );
+}
+
+// Accounts created with "Continue with Google" have no password to change.
+function GoogleOnly() {
+  return (
+    <div className="card p-6">
+      <h3 className="eyebrow text-fg">Password</h3>
+      <p className="mt-3 text-sm text-muted">You sign in with Google, so there&apos;s no Housefull password on this account. Manage your sign-in from your Google account.</p>
+    </div>
   );
 }
 
