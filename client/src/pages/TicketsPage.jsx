@@ -278,6 +278,7 @@ export function OrderPage() {
       <h1 className="display mt-4 text-[clamp(3.5rem,11vw,8rem)]">
         <Mask delay={80}>You&apos;re</Mask> <Mask delay={220}><span className="animate-flicker text-signal [animation-delay:1.5s]">in.</span></Mask>
       </h1>
+      <p className="mt-3 font-mono text-xs uppercase tracking-[0.14em] text-muted">You got in before it went housefull.</p>
       <p className="mt-5 text-lg text-fg">{order.event.title}</p>
       <p className="mt-1 text-sm text-muted">{dateTime(order.event.startsAt)} · {order.event.venue.name}, {order.event.venue.city}</p>
       <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.1em] text-faint">
