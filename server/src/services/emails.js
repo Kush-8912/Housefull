@@ -21,7 +21,7 @@ function layout({ preheader, heading, body, hero = null }) {
   const heroRow = safeImage(hero)
     ? `<tr><td style="padding:0;line-height:0"><img src="${esc(hero)}" width="560" alt="" style="display:block;width:100%;max-width:560px;height:auto;max-height:260px;object-fit:cover"></td></tr>`
     : '';
-  return `<!doctype html><html><body style="margin:0;background:#f1ebe0;font-family:Helvetica,Arial,sans-serif;color:#1b1916">
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#f1ebe0;font-family:Helvetica,Arial,sans-serif;color:#1b1916">
 <span style="display:none;max-height:0;overflow:hidden">${esc(preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1ebe0;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #cfc6b6">
@@ -35,38 +35,154 @@ ${heroRow}
 
 const button = (href, label) => `<a href="${esc(href)}" style="display:inline-block;margin-top:16px;background:#ff5321;color:#0c0b0a;font-weight:700;text-decoration:none;padding:12px 18px">${esc(label)}</a>`;
 
+// Pieces of the event as printed on a ticket, in India time.
+const ist = (d, opts) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', ...opts }).format(new Date(d));
+const clock = (d) => ist(d, { hour: 'numeric', minute: '2-digit' }).toUpperCase();
+const mapsUrl = (venue) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venue.name}, ${venue.city}`)}`;
+const DOORS_BEFORE_MIN = 30;
+
+/**
+ * The event as a ticket: a dark stub with the date block on the left and the
+ * time and venue on the right, the way the app's ticket cards look.
+ * `extra` adds rows underneath (seats, a note).
+ */
+function eventPanel(event, extra = '') {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c0b0a;color:#f1ece3;border-radius:6px">
+<tr>
+<td width="84" align="center" style="background:#ff5321;color:#0c0b0a;border-radius:6px 0 0 6px;padding:14px 8px;vertical-align:middle">
+<div style="font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase">${esc(ist(event.startsAt, { month: 'short' }))}</div>
+<div style="font-size:38px;font-weight:800;line-height:1">${esc(ist(event.startsAt, { day: 'numeric' }))}</div>
+<div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase">${esc(ist(event.startsAt, { weekday: 'short' }))}</div>
+</td>
+<td style="padding:14px 18px;vertical-align:middle">
+<div style="font-size:19px;font-weight:800;text-transform:uppercase;line-height:1.15">${esc(event.title)}</div>
+<div style="margin-top:6px;font-size:14px;color:#a39d93">${esc(clock(event.startsAt))} IST · Doors ${esc(clock(new Date(new Date(event.startsAt).getTime() - DOORS_BEFORE_MIN * 60_000)))}</div>
+<div style="margin-top:2px;font-size:14px"><a href="${esc(mapsUrl(event.venue))}" style="color:#f1ece3;text-decoration:underline">${esc(event.venue.name)}, ${esc(event.venue.city)}</a></div>
+${extra}
+</td></tr></table>`;
+}
+
+const secondaryButton = (href, label) => `<a href="${esc(href)}" style="display:inline-block;margin:16px 0 0 8px;border:1px solid #1b1916;color:#1b1916;font-weight:700;text-decoration:none;padding:11px 16px">${esc(label)}</a>`;
+
 export async function orderConfirmationEmail({ user, event, order, tickets }) {
   const attachments = await Promise.all(tickets.map(async (t) => ({
     filename: `ticket-${t.label}.png`,
     content: await QRCode.toBuffer(qrUrlFor(t._id), { width: 240, margin: 1 }),
     cid: `qr-${t._id}@housefull`,
   })));
-  const rows = tickets.map((t) => `<tr>
-    <td style="padding:12px 0;border-bottom:1px solid #eee;vertical-align:top"><strong style="font-size:22px">${esc(t.label)}</strong><br><span style="color:#6f6a62;font-size:13px">${esc(t.tier)} · ${money(t.price)}</span></td>
-    <td align="right" style="padding:12px 0;border-bottom:1px solid #eee"><img src="cid:qr-${t._id}@housefull" width="120" height="120" alt="QR code for seat ${esc(t.label)}"></td>
-  </tr>`).join('');
+  // One tear-off stub per seat: seat and tier on the left, its QR on the right.
+  const stubs = tickets.map((t) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;background:#f1ebe0;border:1px dashed #cfc6b6;border-radius:6px">
+<tr><td style="padding:14px 18px;vertical-align:middle">
+<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#6f6a62">Admit one · Seat</div>
+<div style="font-size:44px;font-weight:800;line-height:1;margin-top:2px">${esc(t.label)}</div>
+<div style="margin-top:6px;font-size:13px;color:#6f6a62">${esc(t.tier)} · ${money(t.price)}</div>
+</td>
+<td align="right" style="padding:10px 14px;vertical-align:middle"><img src="cid:qr-${t._id}@housefull" width="112" height="112" alt="QR code for seat ${esc(t.label)}" style="display:block;background:#fff;padding:4px"></td></tr></table>`).join('');
   const line = (label, value, muted = true) => `<tr><td style="padding-top:6px;${muted ? 'color:#6f6a62' : ''}">${label}</td><td align="right" style="padding-top:6px">${value}</td></tr>`;
-  const discount = [
+  const bill = [
     line('Tickets', money(order.subtotal ?? order.amount)),
-    order.discount ? line(`Promo ${esc(order.promo?.code)}`, `\u2212${money(order.discount)}`) : '',
-    ...(order.addons ?? []).map((a) => line(`${esc(a.name)} \u00d7 ${a.qty}`, money(a.price * a.qty))),
+    order.discount ? line(`Promo ${esc(order.promo?.code)}`, `−${money(order.discount)}`) : '',
+    ...(order.addons ?? []).map((a) => line(`${esc(a.name)} × ${a.qty}`, money(a.price * a.qty))),
     order.bookingFee ? line('Booking fee', money(order.bookingFee)) : '',
     order.gst ? line('GST on booking fee (18%)', money(order.gst)) : '',
   ].join('');
-  const addonNote = order.addons?.length ? '<p style="font-size:13px;color:#6f6a62">Collect your add-ons at the venue counter by showing this order number.</p>' : '';
+  const orderNo = String(order._id).slice(-8).toUpperCase();
+  const addonNote = order.addons?.length ? `<p style="font-size:13px;color:#6f6a62;margin:12px 0 0">Collect your add-ons at the venue counter with order #${esc(orderNo)}.</p>` : '';
   const html = layout({
-    preheader: `Your tickets for ${event.title}`,
-    heading: `You're in: ${event.title}`,
-    body: `<p style="margin:0 0 4px">Hi ${esc(user.name)}, your order is confirmed.</p>
-<p style="margin:0;color:#6f6a62">${esc(when(event.startsAt))}<br>${esc(event.venue.name)}, ${esc(event.venue.city)}</p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px">${rows}</table>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;font-size:14px">${discount}
-<tr><td style="padding-top:8px;font-weight:700">Total paid</td><td align="right" style="padding-top:8px;font-weight:700">${money(order.amount)}</td></tr></table>
-<p style="font-size:13px;color:#6f6a62">Show each QR code at the door. Order #${esc(String(order._id).slice(-8).toUpperCase())}.</p>${addonNote}
+    preheader: `${tickets.length} ticket${tickets.length > 1 ? 's' : ''} for ${event.title}: ${tickets.map((t) => t.label).join(', ')}`,
+    heading: 'You’re in.',
+    hero: event.coverImageUrl,
+    body: `<p style="margin:0 0 16px">Hi ${esc(user.name.split(' ')[0])}, you got in before it went housefull. Here are your tickets.</p>
+${eventPanel(event)}
+${stubs}
+<p style="margin:10px 0 0;font-size:13px;color:#6f6a62">Show the QR code at the door (or open it in the app). Each code works once.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;font-size:14px;border-top:1px solid #eee">${bill}
+<tr><td style="padding-top:10px;font-weight:700;font-size:16px">Total paid</td><td align="right" style="padding-top:10px;font-weight:700;font-size:16px">${money(order.amount)}</td></tr>
+<tr><td colspan="2" style="padding-top:4px;font-size:12px;color:#6f6a62">Order #${esc(orderNo)}${order.payment?.last4 ? ` · card ••${esc(order.payment.last4)}` : ''}</td></tr></table>${addonNote}
+${button(url('/tickets'), 'View my tickets')}${secondaryButton(mapsUrl(event.venue), 'Get directions')}`,
+  });
+  const text = `You're in: ${event.title}\n${when(event.startsAt)}\n${event.venue.name}, ${event.venue.city}\n\n${tickets.map((t) => `${t.label} (${t.tier}) ${money(t.price)}`).join('\n')}${(order.addons ?? []).map((a) => `\n${a.name} x ${a.qty}`).join('')}\nTotal paid: ${money(order.amount)}\nOrder #${orderNo}\n\nYour QR tickets: ${url('/tickets')}`;
+  return { to: user.email, subject: `Your tickets: ${event.title}`, html, text, attachments };
+}
+
+// The morning-of nudge, a few hours before doors: time, seats, how to get there.
+export function showdayReminderEmail({ user, event, tickets }) {
+  const seats = tickets.map((t) => t.label).join(', ');
+  const html = layout({
+    preheader: `${event.title} starts at ${clock(event.startsAt)}. Your seats: ${seats}`,
+    heading: 'It’s showtime today',
+    hero: event.coverImageUrl,
+    body: `<p style="margin:0 0 16px">Hi ${esc(user.name.split(' ')[0])}, today’s the day. Doors open ${DOORS_BEFORE_MIN} minutes before the start, so aim to be there early.</p>
+${eventPanel(event, `<div style="margin-top:10px;font-size:14px"><strong>Your seat${tickets.length > 1 ? 's' : ''}:</strong> ${esc(seats)}</div>`)}
+<ul style="margin:18px 0 0;padding-left:20px">
+<li style="margin:0 0 6px">Have your QR code open and turn your screen brightness up at the door.</li>
+<li style="margin:0 0 6px">Latecomers may have to wait for a suitable break to be seated.</li>
+<li style="margin:0 0 6px">Each QR code works once, so keep it to yourself.</li>
+</ul>
+${button(url('/tickets'), 'Open my tickets')}${secondaryButton(mapsUrl(event.venue), 'Get directions')}`,
+  });
+  const text = `It's showtime today: ${event.title}\n${when(event.startsAt)} (doors ${DOORS_BEFORE_MIN} min earlier)\n${event.venue.name}, ${event.venue.city}\nYour seats: ${seats}\n\nTickets: ${url('/tickets')}\nDirections: ${mapsUrl(event.venue)}`;
+  return { to: user.email, subject: `Today at ${clock(event.startsAt)}: ${event.title}`, html, text };
+}
+
+// The organizer moved the show. Tickets stay valid; the old time is struck through.
+export function eventRescheduledEmail({ user, event, previousStartsAt }) {
+  const html = layout({
+    preheader: `New time for ${event.title}: ${when(event.startsAt)}`,
+    heading: 'New date & time',
+    hero: event.coverImageUrl,
+    body: `<p style="margin:0 0 12px">Hi ${esc(user.name.split(' ')[0])}, the organizer has moved <strong>${esc(event.title)}</strong>.</p>
+<p style="margin:0 0 16px;font-size:15px"><span style="color:#6f6a62;text-decoration:line-through">${esc(when(previousStartsAt))}</span><br><strong style="font-size:18px">${esc(when(event.startsAt))}</strong></p>
+${eventPanel(event)}
+<p style="margin:16px 0 0">Your tickets, seats and QR codes stay exactly the same. Can’t make the new time? You can cancel for a refund from <em>My tickets</em> up to 24 hours before the show.</p>
 ${button(url('/tickets'), 'View my tickets')}`,
   });
-  const text = `You're in: ${event.title}\n${when(event.startsAt)}\n${event.venue.name}, ${event.venue.city}\n\n${tickets.map((t) => `${t.label} (${t.tier}) ${money(t.price)}`).join('\n')}${(order.addons ?? []).map((a) => `\n${a.name} x ${a.qty}`).join('')}\nTotal paid: ${money(order.amount)}\n\nYour QR tickets: ${url('/tickets')}`;
-  return { to: user.email, subject: `Your tickets: ${event.title}`, html, text, attachments };
+  const text = `${event.title} has moved.\nWas: ${when(previousStartsAt)}\nNow: ${when(event.startsAt)}\n${event.venue.name}, ${event.venue.city}\n\nYour tickets stay the same. Can't make it? Cancel for a refund: ${url('/tickets')}`;
+  return { to: user.email, subject: `New time: ${event.title}`, html, text };
+}
+
+// The organizer cancelled the show. `refund` is the buyer's refunded order
+// (null for someone who was sent a ticket: the refund goes to whoever paid).
+export function eventCancelledEmail({ user, event, refund }) {
+  const money_ = refund?.refundedAmount ? money(refund.refundedAmount) : null;
+  const refundLine = refund
+    ? `<p style="margin:16px 0 0">${money_ ? `<strong>${money_}</strong> has been refunded to your card${refund.payment?.last4 ? ` ••${esc(refund.payment.last4)}` : ''}, booking fee included. It usually shows up within 5–7 working days.` : 'Your free tickets have been cancelled.'}</p>`
+    : '<p style="margin:16px 0 0">The ticket you were sent has been cancelled; the refund goes to the person who bought it.</p>';
+  const html = layout({
+    preheader: `${event.title} has been cancelled${money_ ? `. ${money_} refunded.` : ''}`,
+    heading: 'This show is cancelled',
+    hero: event.coverImageUrl,
+    body: `<p style="margin:0 0 16px">Hi ${esc(user.name.split(' ')[0])}, we’re sorry: the organizer has cancelled <strong>${esc(event.title)}</strong>.</p>
+${eventPanel(event, '<div style="margin-top:10px;display:inline-block;border:2px solid #ff5d5d;color:#ff5d5d;font-size:12px;font-weight:800;letter-spacing:2px;padding:3px 8px;text-transform:uppercase">Cancelled</div>')}
+${refundLine}
+${button(url('/'), 'Find another show')}`,
+  });
+  const text = `${event.title} (${when(event.startsAt)}) has been cancelled by the organizer.${money_ ? ` ${money_} has been refunded to your card.` : ''}\nFind another show: ${url('/')}`;
+  return { to: user.email, subject: `Cancelled: ${event.title}`, html, text };
+}
+
+// Receipt for an attendee cancelling their own order.
+export function orderRefundedEmail({ user, event, order }) {
+  const kept = (order.bookingFee ?? 0) + (order.gst ?? 0);
+  const orderNo = String(order._id).slice(-8).toUpperCase();
+  const html = layout({
+    preheader: `${money(order.refundedAmount ?? 0)} refunded for ${event.title}`,
+    heading: 'Refund on its way',
+    body: `<p style="margin:0 0 16px">Hi ${esc(user.name.split(' ')[0])}, you cancelled your order for <strong>${esc(event.title)}</strong> and your tickets are no longer valid.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;background:#f1ebe0;border:1px dashed #cfc6b6;border-radius:6px">
+<tr><td style="padding:14px 18px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="color:#6f6a62">Paid</td><td align="right">${money(order.amount)}</td></tr>
+${kept ? `<tr><td style="color:#6f6a62;padding-top:4px">Booking fee + GST (not refundable)</td><td align="right" style="padding-top:4px">−${money(kept)}</td></tr>` : ''}
+<tr><td style="padding-top:8px;font-weight:700;font-size:16px">Refunded</td><td align="right" style="padding-top:8px;font-weight:700;font-size:16px">${money(order.refundedAmount ?? 0)}</td></tr>
+</table>
+<div style="margin-top:8px;font-size:12px;color:#6f6a62">Order #${esc(orderNo)}${order.payment?.last4 ? ` · to card ••${esc(order.payment.last4)}` : ''} · usually 5–7 working days</div>
+</td></tr></table>
+<p style="margin:16px 0 0">Your seats are back on sale for someone else.</p>
+${button(url('/'), 'Find another show')}`,
+  });
+  const text = `You cancelled your order #${orderNo} for ${event.title}. Refunded: ${money(order.refundedAmount ?? 0)}${kept ? ` (booking fee ${money(kept)} not refundable)` : ''}.`;
+  return { to: user.email, subject: `Refund confirmed: ${event.title}`, html, text };
 }
 
 export function ticketReceivedEmail({ recipient, sender, event, ticket }) {
