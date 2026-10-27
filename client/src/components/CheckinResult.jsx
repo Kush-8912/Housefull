@@ -44,12 +44,13 @@ export function CheckinResult({ result, className = '' }) {
         <Mark ok />
         <p className="mt-3 font-mono text-xs font-semibold uppercase tracking-[0.16em]">Verified · Admit</p>
 
-        <div className="mt-6 flex animate-rise items-center gap-3 [animation-delay:450ms]">
+        <div className="mt-6 flex max-w-full animate-rise items-center gap-3 [animation-delay:450ms]">
           {/* The photo lets door staff check the person matches the account. */}
           <Avatar name={result.attendee} src={result.attendeeAvatarUrl} className={`bg-ink font-mono font-semibold text-go ${result.attendeeAvatarUrl ? 'h-16 w-16 ring-2 ring-ink' : 'h-12 w-12 text-sm'}`} />
           <span className="min-w-0 text-left">
-            <span className="block truncate text-2xl font-bold leading-tight">{result.attendee ?? 'Unknown account'}</span>
-            {result.attendeeEmail && <span className="block truncate text-sm opacity-75">{result.attendeeEmail}</span>}
+            {/* Wrap long names and emails: door staff need to read all of it, and it must not widen the card. */}
+            <span className="block text-2xl font-bold leading-tight [overflow-wrap:anywhere]">{result.attendee ?? 'Unknown account'}</span>
+            {result.attendeeEmail && <span className="block text-sm opacity-75 [overflow-wrap:anywhere]">{result.attendeeEmail}</span>}
           </span>
         </div>
 
