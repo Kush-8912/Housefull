@@ -1,11 +1,18 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Accessibility, MoveHorizontal } from 'lucide-react';
 import { money } from '../lib/format';
+import { calm } from '../lib/motion';
 
 // Organizers pick tier colours for a light background; lift them so they
 // stay readable against the dark house.
 const lift = (hex) => `color-mix(in oklab, ${hex} 72%, white)`;
 const tierColor = (tiers, name) => lift(tiers.find((t) => t.name === name)?.color ?? '#ff5321');
+
+// Played on a seat the moment someone else grabs it while you're looking.
+const TAKEN_FLASH = [
+  { backgroundColor: '#ff5d5d', boxShadow: '0 0 0 0 rgb(255 93 93 / 0.7)' },
+  { boxShadow: '0 0 0 14px rgb(255 93 93 / 0)' },
+];
 
 const BASE = 'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-t-[9px] rounded-b-[3px] font-mono text-[10px] font-semibold transition duration-150 sm:h-8 sm:w-8';
 
@@ -14,13 +21,21 @@ const Seat = memo(function Seat({ seat, color, note, selected, interactive, onTo
   const active = selected || seat.mine;
   const disabled = !interactive || takenByOthers;
 
+  const button = useRef(null);
+  const lastStatus = useRef(seat.status);
+  useEffect(() => {
+    if (lastStatus.current === seat.status) return;
+    lastStatus.current = seat.status;
+    if (takenByOthers && !calm()) button.current?.animate(TAKEN_FLASH, { duration: 900, easing: 'ease-out' });
+  }, [seat.status, takenByOthers]);
+
   let cls = BASE;
   if (seat.status === 'sold') {
     cls += ' bg-ink-800 text-faint';
   } else if (takenByOthers) {
     cls += ' hatch border border-line-strong text-faint';
   } else if (active) {
-    cls += ' border-2 border-[var(--tier)] bg-[var(--tier)] font-semibold text-ink';
+    cls += ' seat-picked border-2 border-[var(--tier)] bg-[var(--tier)] font-semibold text-ink shadow-[0_0_14px_-2px_var(--tier)]';
   } else {
     cls += ' border-2 border-[var(--tier)] bg-[color-mix(in_oklab,var(--tier)_14%,transparent)] text-[var(--tier)]';
     if (interactive) cls += ' cursor-pointer hover:scale-110 hover:bg-[color-mix(in_oklab,var(--tier)_38%,transparent)]';
@@ -30,6 +45,7 @@ const Seat = memo(function Seat({ seat, color, note, selected, interactive, onTo
   const access = seat.accessible ? ', wheelchair space' : '';
   return (
     <button
+      ref={button}
       type="button"
       className={cls}
       style={{ '--tier': color }}
@@ -68,7 +84,7 @@ function Stage() {
             <feGaussianBlur stdDeviation="14" />
           </filter>
         </defs>
-        <ellipse cx="200" cy="26" rx="170" ry="16" fill="#ff5321" opacity="0.22" filter="url(#stage-blur)" />
+        <ellipse cx="200" cy="26" rx="170" ry="16" fill="#ff5321" opacity="0.22" filter="url(#stage-blur)" className="animate-breathe" />
         <path d="M0 4 Q200 44 400 4" fill="none" stroke="url(#stage-edge)" strokeWidth="2.5" />
       </svg>
       <p className="absolute inset-x-0 top-1.5 text-center font-mono text-[10px] font-semibold tracking-[0.5em] text-signal">STAGE</p>
@@ -122,15 +138,17 @@ export function SeatMap({ rows, tiers, seats, selected = new Set(), onToggle, on
         className={`overflow-x-auto overscroll-x-contain pb-4 [perspective:1100px] ${wide ? '[mask-image:linear-gradient(to_right,transparent,#000_1.5rem,#000_calc(100%-1.5rem),transparent)]' : ''}`}
       >
         <div className="mx-auto flex w-max origin-bottom flex-col gap-1.5 px-2 [transform:rotateX(14deg)]">
-          {rows.map((row) => (
+          {rows.map((row, r) => (
             <div key={row.label} className="flex items-center gap-2">
               <span className="w-7 text-right font-mono text-[11px] font-semibold text-faint">{row.label}</span>
               <div className="flex flex-1 justify-center gap-1">
                 {Array.from({ length: Number(row.seats) || 0 }, (_, i) => i + 1).map((n) => {
                   const seat = byPosition.get(`${row.label}:${n}`);
                   const aisle = row.aisleAfter?.includes(n);
+                  // Seats fill in as a wave rolling back from the stage, centre first.
+                  const wave = Math.min(1400, r * 45 + Math.abs(n - (Number(row.seats) + 1) / 2) * 14);
                   return (
-                    <span key={n} className={`flex ${aisle ? 'mr-4 sm:mr-6' : ''}`}>
+                    <span key={n} className={`flex animate-seat-in ${aisle ? 'mr-4 sm:mr-6' : ''}`} style={{ animationDelay: `${wave}ms` }}>
                       {seat ? (
                         <Seat
                           seat={seat}

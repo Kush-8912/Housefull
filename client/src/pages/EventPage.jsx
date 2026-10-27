@@ -13,6 +13,7 @@ import { SeatMap } from '../components/SeatMap';
 import { findBestSeats } from '../lib/bestSeats';
 import { downloadIcs } from '../lib/calendar';
 import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../components/States';
+import { CountUp, Words } from '../components/Motion';
 
 const MAX_SEATS = 8; // fallback; each event says its own limit (maxPerOrder) and the server enforces it
 
@@ -141,14 +142,14 @@ export function EventPage() {
     <div>
       <header className="relative left-1/2 -mt-10 w-screen -translate-x-1/2 overflow-hidden border-b border-line">
         {event.coverImageUrl && (
-          <img src={event.coverImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 grayscale" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img key={event.id} src={event.coverImageUrl} alt="" className="absolute inset-0 h-full w-full animate-ken-burns object-cover opacity-35 grayscale" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/80 to-ink/40" />
         <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-16 sm:px-6 sm:pt-24">
           <div className="flex flex-wrap items-center gap-3">
             <span className="bg-signal px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink">{CATEGORY_LABELS[event.category]}</span>
             {event.status === 'published' && event.onSale && (
-              <span className="eyebrow tabular">{available} of {seats.length} seats open</span>
+              <span className="eyebrow tabular"><CountUp value={available} /> of {seats.length} seats open</span>
             )}
             {event.badges?.map((b) => (
               <span key={b} title={BADGES[b]?.hint} className={`px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] ${BADGES[b]?.tone}`}>{BADGES[b]?.label}</span>
@@ -165,8 +166,8 @@ export function EventPage() {
               </span>
             )}
           </div>
-          <h1 className="display mt-5 max-w-4xl text-[clamp(3rem,8vw,6.5rem)]">{event.title}</h1>
-          <dl className="mt-8 grid max-w-3xl grid-cols-2 gap-x-8 gap-y-5 border-t border-line pt-5 sm:grid-cols-4">
+          <h1 key={event.id} className="display mt-5 max-w-4xl text-[clamp(3rem,8vw,6.5rem)]"><Words delay={80}>{event.title}</Words></h1>
+          <dl className="mt-8 grid max-w-3xl animate-rise grid-cols-2 gap-x-8 gap-y-5 border-t border-line pt-5 [animation-delay:350ms] sm:grid-cols-4">
             <Meta label="Date">{dateMedium(event.startsAt)}</Meta>
             <Meta label="Starts">{time(event.startsAt)}</Meta>
             <Meta label="Runs">{duration(event.durationMinutes)}</Meta>
@@ -242,7 +243,7 @@ export function EventPage() {
         </aside>
       </div>
 
-      {event.status !== 'draft' && <Reviews eventId={event.id} />}
+      {event.status !== 'draft' && <div className="reveal"><Reviews eventId={event.id} /></div>}
 
       {canBuy && (
         // Sticky rather than fixed: it rides along the bottom while you scroll,
@@ -255,7 +256,7 @@ export function EventPage() {
                   <p className={`eyebrow ${picked.length === count ? 'text-go' : ''}`}>{picked.length} of {plural(count, 'seat')}{picked.length === count ? ' · all picked' : ''}</p>
                   <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="truncate font-mono text-sm font-semibold text-fg">{picked.map((s) => s.label).join(' · ')}</span>
-                    <span className="display text-2xl text-signal">{money(total)}</span>
+                    <span key={total} className="display inline-block animate-pop text-2xl text-signal">{money(total)}</span>
                   </p>
                 </>
               ) : (
@@ -264,7 +265,7 @@ export function EventPage() {
             </div>
             <div className="flex shrink-0 gap-2">
               {picked.length > 0 && <button type="button" className="btn-ghost hidden sm:inline-flex" onClick={() => setSelected(new Set())}>Clear</button>}
-              <button type="button" className="btn-primary py-3" disabled={!picked.length || busy} onClick={holdSeats}>
+              <button type="button" className={`btn-primary py-3 ${picked.length === count ? 'animate-glow' : ''}`} disabled={!picked.length || busy} onClick={holdSeats}>
                 {busy ? <Spinner className="h-4 w-4" /> : <Timer className="h-4 w-4" aria-hidden />} Hold &amp; checkout
               </button>
             </div>
