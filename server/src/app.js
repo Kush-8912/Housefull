@@ -26,11 +26,18 @@ export function createApp() {
           directives: {
             // Organizers can use any HTTPS image as an event cover.
             'img-src': ["'self'", 'data:', 'https:'],
-            // Same-origin websocket for live seat updates.
-            'connect-src': ["'self'", 'wss:', 'ws:'],
+            // Same-origin websocket for live seat updates, plus Google sign-in.
+            'connect-src': ["'self'", 'wss:', 'ws:', 'https://accounts.google.com/gsi/'],
+            // "Continue with Google": Google's script and the button's iframe.
+            'script-src': ["'self'", 'https://accounts.google.com/gsi/client'],
+            'frame-src': ['https://accounts.google.com/gsi/'],
           },
         }
       : false,
+    // Google's sign-in popup has to be able to report back to this page, and
+    // checks which site it was opened from.
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }));
   app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
   app.use(express.json({ limit: '100kb' }));
