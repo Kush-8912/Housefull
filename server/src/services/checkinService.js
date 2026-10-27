@@ -3,7 +3,7 @@ import { Ticket } from '../models/Ticket.js';
 import { avatarUrlFor } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
 import { verifyQrPayload } from './ticketSigner.js';
-import { emitCheckin } from '../realtime/bus.js';
+import { emitCheckin, emitToUser } from '../realtime/bus.js';
 
 // Doors are considered closed this long after the scheduled end.
 const CHECKIN_GRACE_AFTER_END_MS = 6 * 3_600_000;
@@ -54,13 +54,17 @@ async function admit({ ticketId, event, staff }) {
   const admitted = await Ticket.findOneAndUpdate(
     { _id: ticketId, event: event._id, status: 'valid', checkedInAt: null },
     { $set: { checkedInAt: new Date(), checkedInBy: staff._id } },
-    { returnDocument: 'after', projection: { label: 1, tier: 1, user: 1, checkedInAt: 1 } },
+    { returnDocument: 'after', projection: { label: 1, tier: 1, user: 1, order: 1, checkedInAt: 1 } },
   ).populate('user', 'name email avatarUpdatedAt').lean();
 
   if (admitted) {
     const live = { ticketId: admitted._id, label: admitted.label, tier: admitted.tier, attendee: admitted.user?.name, checkedInAt: admitted.checkedInAt };
     // The live channel reaches the whole event room, so the email stays out of it.
     emitCheckin(event._id, live);
+    // And the ticket holder's own screens, so their ticket shows "checked in" straight away.
+    if (admitted.user) {
+      emitToUser(admitted.user._id, 'ticket:checkin', { ticketId: String(admitted._id), orderId: String(admitted.order), label: admitted.label, eventTitle: event.title, checkedInAt: admitted.checkedInAt });
+    }
     return { ...live, attendeeEmail: admitted.user?.email ?? null, attendeeAvatarUrl: avatarUrlFor(admitted.user) };
   }
 

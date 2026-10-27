@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { startDb, stopDb, clearDb, app, signUp, publishedEvent } from './helpers.js';
 import { qrPayloadFor } from '../src/services/ticketSigner.js';
+import { attachIO, userRoom } from '../src/realtime/bus.js';
 
 beforeAll(startDb);
 afterAll(stopDb);
@@ -33,6 +34,26 @@ describe('check-in', () => {
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe('ALREADY_CHECKED_IN');
     expect(again.body.error.details.checkedInAt).toBeTruthy();
+  });
+
+  it('tells the ticket holder live, so their ticket shows checked in without a reload', async () => {
+    const org = await signUp('organizer');
+    const buyer = await signUp();
+    const { id, seats } = await publishedEvent(org);
+    const { order, tickets } = await buyTickets(buyer, id, seats.slice(0, 1));
+
+    const sent = [];
+    attachIO({ to: (room) => ({ emit: (name, payload) => sent.push({ room, name, payload }) }) });
+    try {
+      await org.agent.post(`/api/events/${id}/checkin`).send({ qr: tickets[0].qr }).expect(200);
+      await org.agent.post(`/api/events/${id}/checkin`).send({ qr: tickets[0].qr }).expect(409);
+    } finally {
+      attachIO(null);
+    }
+    const toHolder = sent.filter((m) => m.name === 'ticket:checkin');
+    expect(toHolder).toHaveLength(1); // the rejected second scan sends nothing
+    expect(toHolder[0].room).toBe(userRoom(buyer.user.id ?? buyer.user._id));
+    expect(toHolder[0].payload).toMatchObject({ ticketId: String(tickets[0]._id), orderId: String(order._id), label: seats[0].label });
   });
 
   it('admits only once when two scanners read the same code simultaneously', async () => {
