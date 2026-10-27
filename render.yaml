@@ -25,5 +25,9 @@ services:
         sync: false # your Render URL, for links in emails
       - key: SMTP_URL
         sync: false # optional: SMTP credentials to actually send email
+      - key: MAIL_FROM
+        sync: false # the address emails come from, e.g. Housefull <housefull.tickets@gmail.com>
       - key: GOOGLE_CLIENT_ID
         sync: false # optional: turns on "Continue with Google"
+      - key: ANTHROPIC_API_KEY
+        sync: false # optional: Claude writes reminder emails, feedback questions and insights
