@@ -14,6 +14,7 @@ import { AppError } from '../utils/AppError.js';
 import { cancelEvent } from '../services/orderService.js';
 import { assertValidLayout, assertSalesWindow, publishEvent, availabilityFor, seatMapFor, addShowtime } from '../services/eventService.js';
 import { rescheduleEvent } from '../services/showChanges.js';
+import { CANCELLATION_POLICIES } from '../services/refundPolicy.js';
 import { listEvents, decorate, showsFor } from '../services/discoveryService.js';
 import { reviewsFor, saveReview, deleteReview } from '../services/reviewService.js';
 import { joinWaitlist, leaveWaitlist, waitlistStatus } from '../services/waitlistService.js';
@@ -56,6 +57,7 @@ const eventBody = z.object({
     .max(env.MAX_SEATS_PER_HOLD, `At most ${env.MAX_SEATS_PER_HOLD} tickets per order`).nullable().default(null),
   salesStartAt: z.coerce.date('Enter a valid sales start time').nullable().default(null),
   salesCloseMinutes: z.number().int().min(0).max(7 * 24 * 60, 'Sales can close at most 7 days before the show').default(0),
+  cancellationPolicy: z.enum(Object.keys(CANCELLATION_POLICIES), 'Pick a cancellation policy').optional(),
 });
 
 // Once published the layout and price are frozen: buyers have already seen them.

@@ -134,7 +134,7 @@ export function eventRescheduledEmail({ user, event, previousStartsAt }) {
     body: `<p style="margin:0 0 12px">Hi ${esc(user.name.split(' ')[0])}, the organizer has moved <strong>${esc(event.title)}</strong>.</p>
 <p style="margin:0 0 16px;font-size:15px"><span style="color:#6f6a62;text-decoration:line-through">${esc(when(previousStartsAt))}</span><br><strong style="font-size:18px">${esc(when(event.startsAt))}</strong></p>
 ${eventPanel(event)}
-<p style="margin:16px 0 0">Your tickets, seats and QR codes stay exactly the same. Can’t make the new time? You can cancel for a refund from <em>My tickets</em> up to 24 hours before the show.</p>
+<p style="margin:16px 0 0">Your tickets, seats and QR codes stay exactly the same. Can’t make the new time? Because the show moved, you can cancel from <em>My tickets</em> for a full refund of your tickets, up to a day before.</p>
 ${button(url('/tickets'), 'View my tickets')}`,
   });
   const text = `${event.title} has moved.\nWas: ${when(previousStartsAt)}\nNow: ${when(event.startsAt)}\n${event.venue.name}, ${event.venue.city}\n\nYour tickets stay the same. Can't make it? Cancel for a refund: ${url('/tickets')}`;
@@ -162,8 +162,9 @@ ${button(url('/'), 'Find another show')}`,
 }
 
 // Receipt for an attendee cancelling their own order.
-export function orderRefundedEmail({ user, event, order }) {
-  const kept = (order.bookingFee ?? 0) + (order.gst ?? 0);
+export function orderRefundedEmail({ user, event, order, percent = 100 }) {
+  const fee = (order.bookingFee ?? 0) + (order.gst ?? 0);
+  const charge = Math.max(0, order.amount - fee - (order.refundedAmount ?? 0)); // what the cancellation policy kept
   const orderNo = String(order._id).slice(-8).toUpperCase();
   const html = layout({
     preheader: `${money(order.refundedAmount ?? 0)} refunded for ${event.title}`,
@@ -173,7 +174,8 @@ export function orderRefundedEmail({ user, event, order }) {
 <tr><td style="padding:14px 18px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr><td style="color:#6f6a62">Paid</td><td align="right">${money(order.amount)}</td></tr>
-${kept ? `<tr><td style="color:#6f6a62;padding-top:4px">Booking fee + GST (not refundable)</td><td align="right" style="padding-top:4px">−${money(kept)}</td></tr>` : ''}
+${fee ? `<tr><td style="color:#6f6a62;padding-top:4px">Booking fee + GST (not refundable)</td><td align="right" style="padding-top:4px">−${money(fee)}</td></tr>` : ''}
+${charge ? `<tr><td style="color:#6f6a62;padding-top:4px">Cancellation charge (${100 - percent}% of tickets)</td><td align="right" style="padding-top:4px">−${money(charge)}</td></tr>` : ''}
 <tr><td style="padding-top:8px;font-weight:700;font-size:16px">Refunded</td><td align="right" style="padding-top:8px;font-weight:700;font-size:16px">${money(order.refundedAmount ?? 0)}</td></tr>
 </table>
 <div style="margin-top:8px;font-size:12px;color:#6f6a62">Order #${esc(orderNo)}${order.payment?.last4 ? ` · to card ••${esc(order.payment.last4)}` : ''} · usually 5–7 working days</div>
@@ -181,7 +183,7 @@ ${kept ? `<tr><td style="color:#6f6a62;padding-top:4px">Booking fee + GST (not r
 <p style="margin:16px 0 0">Your seats are back on sale for someone else.</p>
 ${button(url('/'), 'Find another show')}`,
   });
-  const text = `You cancelled your order #${orderNo} for ${event.title}. Refunded: ${money(order.refundedAmount ?? 0)}${kept ? ` (booking fee ${money(kept)} not refundable)` : ''}.`;
+  const text = `You cancelled your order #${orderNo} for ${event.title}. Refunded: ${money(order.refundedAmount ?? 0)}${fee ? ` (booking fee ${money(fee)} not refundable)` : ''}${charge ? `; cancellation charge ${money(charge)}` : ''}.`;
   return { to: user.email, subject: `Refund confirmed: ${event.title}`, html, text };
 }
 

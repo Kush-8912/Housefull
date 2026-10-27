@@ -44,6 +44,7 @@ const EVENTS = [
   },
   {
     title: 'Stand-up Saturday: Open Mic Night',
+    cancellationPolicy: 'flexible',
     category: 'comedy',
     venue: { name: 'Laughter Loft', city: 'Mumbai' },
     startsAt: days(5, 21),
@@ -54,6 +55,7 @@ const EVENTS = [
   },
   {
     title: 'Frontend Forward 2026',
+    cancellationPolicy: 'none',
     category: 'tech',
     venue: { name: 'Lakeside Convention Centre', city: 'Bengaluru' },
     startsAt: days(20, 9),
@@ -202,6 +204,7 @@ async function main() {
   console.log('Promo codes: EARLY20 (Midnight Echoes), STUDENT500 (Frontend Forward). Pottery workshop is sold out.');
   console.log('Hamlet has 3 showtimes. Sunday Jazz Brunch already happened: log in as attendee@ to review it.');
   console.log(`Log in as organizer@, attendee@ or friend@housefull.dev with password "${DEMO_PASSWORD}".`);
+  console.log('Cancellation policies: Stand-up is Flexible, Frontend Forward has no cancellations, the rest are Standard.');
   console.log('organizer@ is already a verified host. New organizers verify on their profile (demo PAN ABCPO1234K for "Riya Organiser").');
   await backgroundIdle();
 }

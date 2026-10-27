@@ -127,3 +127,34 @@ describe('cancellations and refunds', () => {
     expect(mail.text).toContain(String(order._id).slice(-8).toUpperCase());
   });
 });
+
+describe('cancellation policy', () => {
+  it('refunds by the event’s policy, says so in the receipt, and refuses on a no-cancellation event', async () => {
+    const org = await signUp('organizer');
+    const buyer = await signUp();
+    // Standard policy, 4 days out: 75% of the ticket money back.
+    const soon = await publishedEvent(org, { title: 'Four Days Out', startsAt: new Date(Date.now() + 4 * 24 * HOUR).toISOString() });
+    const { order } = await buy(buyer, soon.id, [soon.seats[4]]); // a ₹500 General seat
+    const list = await buyer.agent.get('/api/orders').expect(200);
+    expect(list.body.items[0].cancellation).toMatchObject({ allowed: true, percent: 75, refund: 375, next: { percent: 50 } });
+    const res = await buyer.agent.post(`/api/orders/${order._id}/cancel`).expect(200);
+    expect(res.body.order.refundedAmount).toBe(375);
+    const [mail] = await mailTo(buyer.user.email, 'Refund confirmed: Four Days Out');
+    expect(mail.html).toContain('Cancellation charge (25% of tickets)');
+
+    const strict = await publishedEvent(org, { title: 'Final Sale', cancellationPolicy: 'none' });
+    const second = await buy(buyer, strict.id, [strict.seats[0]]);
+    expect((await buyer.agent.get('/api/orders').expect(200)).body.items[0].cancellation).toMatchObject({ allowed: false, reason: 'NO_REFUNDS' });
+    expect((await buyer.agent.post(`/api/orders/${second.order._id}/cancel`).expect(409)).body.error.code).toBe('CANCELLATION_CLOSED');
+  });
+
+  it('lets earlier buyers cancel for a full refund after the organizer moves the show', async () => {
+    const org = await signUp('organizer');
+    const buyer = await signUp();
+    const { id, seats } = await publishedEvent(org, { cancellationPolicy: 'none' });
+    const { order } = await buy(buyer, id, [seats[0]]);
+    await org.agent.post(`/api/events/${id}/reschedule`).send({ startsAt: new Date(Date.now() + 45 * 24 * HOUR).toISOString() }).expect(200);
+    const res = await buyer.agent.post(`/api/orders/${order._id}/cancel`).expect(200);
+    expect(res.body.order.refundedAmount).toBe(order.amount);
+  });
+});

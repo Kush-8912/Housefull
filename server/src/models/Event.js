@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { CANCELLATION_POLICIES, DEFAULT_POLICY } from '../services/refundPolicy.js';
 
 export const CATEGORIES = ['music', 'comedy', 'theatre', 'sports', 'tech', 'workshop', 'other'];
 export const EVENT_STATUS = ['draft', 'published', 'cancelled'];
@@ -51,6 +52,10 @@ const eventSchema = new mongoose.Schema(
     maxPerOrder: { type: Number, min: 1, max: 20, default: null },
     salesStartAt: { type: Date, default: null },
     salesCloseMinutes: { type: Number, min: 0, max: 7 * 24 * 60, default: 0 },
+    // How much attendees get back if they cancel; see refundPolicy.js. Locked once published.
+    cancellationPolicy: { type: String, enum: Object.keys(CANCELLATION_POLICIES), default: DEFAULT_POLICY },
+    // Set when the organizer moves a published show; earlier buyers may then cancel for a full refund.
+    rescheduledAt: { type: Date, default: null },
     // Showtimes of the same production share a series id (the first show's
     // _id). A one-off event has none; see seriesKey().
     seriesId: { type: mongoose.Schema.Types.ObjectId, default: null, index: true },

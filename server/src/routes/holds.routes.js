@@ -43,7 +43,7 @@ export const holdsRouter = Router();
 holdsRouter.get('/:id', requireAuth, asyncHandler(async (req, res) => {
   const hold = await loadOwnedHold(req.params.id, req.user);
   const [event, seats, menu] = await Promise.all([
-    Event.findById(hold.event, 'title venue startsAt tiers status'),
+    Event.findById(hold.event, 'title venue startsAt tiers status cancellationPolicy'),
     seatsOf(hold),
     addonMenu(hold.event),
   ]);

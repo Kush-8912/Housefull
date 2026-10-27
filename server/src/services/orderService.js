@@ -10,13 +10,12 @@ import { releaseHold } from './holdService.js';
 import { findUsablePromo, discountFor, redeemPromo, releasePromo } from './promoService.js';
 import { notifyWaitlistLater } from './waitlistService.js';
 import { resolveAddonLines, linesTotal, reserveAddons, releaseAddons } from './addonService.js';
-import { bill, attendeeRefundFor } from './pricing.js';
+import { bill } from './pricing.js';
 import { sendMail } from './mailer.js';
 import { orderConfirmationEmail, orderRefundedEmail } from './emails.js';
 import { announceCancellation, ticketHolders } from './showChanges.js';
+import { refundQuote } from './refundPolicy.js';
 
-// Attendees can cancel for a refund until this long before the event starts.
-export const CANCELLATION_CUTOFF_HOURS = 24;
 // Payment must not be cut short by the hold expiring mid-checkout.
 const CHECKOUT_GRACE_MS = 2 * 60_000;
 
@@ -207,9 +206,9 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
 }
 
 // Refund an order, void its tickets and (optionally) put seats back on sale.
-// An attendee's own cancellation keeps the booking fee; an organizer
-// cancelling the event refunds everything.
-async function refundOrder(order, { by, reopenSeats }) {
+// An attendee's own cancellation refunds what their event's policy allows
+// (`amount`); an organizer cancelling the event refunds everything.
+async function refundOrder(order, { by, reopenSeats, amount = order.amount }) {
   const claimed = await Order.findOneAndUpdate(
     { _id: order._id, status: 'paid' },
     { status: 'cancelled', cancelledAt: new Date(), cancelledBy: by },
@@ -217,7 +216,7 @@ async function refundOrder(order, { by, reopenSeats }) {
   );
   if (!claimed) return null;
 
-  const refundAmount = by === 'attendee' ? attendeeRefundFor(claimed) : claimed.amount;
+  const refundAmount = Math.min(amount, claimed.amount);
   if (claimed.payment?.chargeId && refundAmount > 0) {
     const { refundId } = await payments.refund({ chargeId: claimed.payment.chargeId, amount: refundAmount });
     claimed.payment.refundId = refundId;
@@ -237,15 +236,29 @@ async function refundOrder(order, { by, reopenSeats }) {
   return claimed;
 }
 
+/**
+ * Can this order be cancelled now, and for how much? What My tickets shows
+ * next to the cancel button. Checked-in and transferred tickets rule it out,
+ * as cancelOrderByAttendee enforces.
+ */
+export function cancellationFor(order, event, tickets) {
+  if (order.status !== 'paid' || event.status !== 'published') return { allowed: false, reason: 'NOT_ACTIVE' };
+  if (tickets.some((t) => t.checkedInAt)) return { allowed: false, reason: 'CHECKED_IN' };
+  if (tickets.some((t) => t.status === 'transferred')) return { allowed: false, reason: 'TRANSFERRED' };
+  return refundQuote(event, order);
+}
+
 export async function cancelOrderByAttendee({ user, orderId }) {
   const order = await Order.findById(orderId);
   if (!order || !order.user.equals(user._id)) throw AppError.notFound('Order');
   if (order.status !== 'paid') throw AppError.conflict(`This order is ${order.status} and cannot be cancelled`);
 
-  const event = await Event.findById(order.event, 'title startsAt venue');
-  const cutoff = new Date(event.startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * 3_600_000);
-  if (new Date() > cutoff) {
-    throw AppError.conflict(`Cancellations close ${CANCELLATION_CUTOFF_HOURS} hours before the event starts`, { code: 'CANCELLATION_CLOSED' });
+  const event = await Event.findById(order.event, 'title startsAt venue cancellationPolicy rescheduledAt');
+  const quote = refundQuote(event, order);
+  if (!quote.allowed) {
+    throw AppError.conflict(quote.reason === 'NO_REFUNDS'
+      ? 'This event doesn’t allow cancellations'
+      : 'Cancellations for this event have closed', { code: 'CANCELLATION_CLOSED' });
   }
   if (await Ticket.exists({ order: order._id, checkedInAt: { $ne: null } })) {
     throw AppError.conflict('Tickets that have been checked in cannot be refunded');
@@ -254,9 +267,9 @@ export async function cancelOrderByAttendee({ user, orderId }) {
     throw AppError.conflict('Orders with transferred tickets can\u2019t be cancelled', { code: 'HAS_TRANSFERS' });
   }
 
-  const refunded = await refundOrder(order, { by: 'attendee', reopenSeats: true });
+  const refunded = await refundOrder(order, { by: 'attendee', reopenSeats: true, amount: quote.refund });
   if (!refunded) throw AppError.conflict('This order was already cancelled');
-  sendMail(orderRefundedEmail({ user, event, order: refunded }));
+  sendMail(orderRefundedEmail({ user, event, order: refunded, percent: quote.percent }));
   return refunded;
 }
 

@@ -6,7 +6,7 @@ import { validate } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
-import { checkout, cancelOrderByAttendee, CANCELLATION_CUTOFF_HOURS } from '../services/orderService.js';
+import { checkout, cancelOrderByAttendee, cancellationFor } from '../services/orderService.js';
 import { qrPayloadFor, qrUrlFor } from '../services/ticketSigner.js';
 
 const cardSchema = z.object({
@@ -39,7 +39,7 @@ export const ordersRouter = Router();
 ordersRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id, status: { $in: ['paid', 'cancelled', 'refunded'] } })
     .sort({ createdAt: -1 })
-    .populate('event', 'title venue startsAt durationMinutes description status category coverImageUrl');
+    .populate('event', 'title venue startsAt durationMinutes description status category coverImageUrl cancellationPolicy rescheduledAt');
   // Only tickets this user holds: after a transfer the recipient's new ticket
   // shares the order, and its QR code must never be shown to the sender.
   const tickets = await Ticket.find({ order: { $in: orders.map((o) => o._id) }, user: req.user._id })
@@ -58,8 +58,10 @@ ordersRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   }));
 
   res.json({
-    cancellationCutoffHours: CANCELLATION_CUTOFF_HOURS,
-    items: orders.map((o) => ({ ...o.toJSON(), tickets: (byOrder.get(String(o._id)) ?? []).map(withQr) })),
+    items: orders.map((o) => {
+      const mine = byOrder.get(String(o._id)) ?? [];
+      return { ...o.toJSON(), tickets: mine.map(withQr), cancellation: cancellationFor(o, o.event, mine) };
+    }),
     received: receivedByEvent,
   });
 }));

@@ -26,7 +26,7 @@ export async function rescheduleEvent(event, startsAt) {
   const moved = await Event.findOneAndUpdate(
     { _id: event._id, status: 'published', startsAt: previousStartsAt },
     // The reminder copy names the day ("See you on Friday"), so it is written again.
-    { startsAt, reminderCopy: null },
+    { startsAt, reminderCopy: null, rescheduledAt: new Date() },
     { returnDocument: 'after' },
   );
   if (!moved) throw notReschedulable();
