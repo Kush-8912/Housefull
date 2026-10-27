@@ -20,6 +20,9 @@ const schema = z.object({
   MAIL_FROM: z.string().default('Housefull <tickets@housefull.dev>'),
   // Public URL of the app, used for links inside emails.
   APP_URL: z.string().optional(),
+  // Optional: OAuth client ID for "Continue with Google" (Google Cloud console,
+  // a Web application client). Without it the button is hidden.
+  GOOGLE_CLIENT_ID: z.string().optional(),
   // Optional: lets Claude write the copy for event reminder emails. Without it
   // reminders use a built-in template.
   ANTHROPIC_API_KEY: z.string().optional(),

@@ -7,7 +7,11 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true, select: false },
+    // Accounts made with "Continue with Google" have no password.
+    passwordHash: { type: String, required() { return !this.googleId; }, select: false },
+    hasPassword: { type: Boolean, default: true },
+    // Google's stable account ID ("sub"), once the account has signed in with Google.
+    googleId: { type: String, unique: true, sparse: true, select: false },
     role: { type: String, enum: ROLES, default: 'attendee' },
     // Login tokens issued before this are rejected, so changing the password
     // signs out every other device.
@@ -18,8 +22,8 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-userSchema.methods.verifyPassword = function verifyPassword(plain) {
-  return bcrypt.compare(plain, this.passwordHash);
+userSchema.methods.verifyPassword = async function verifyPassword(plain) {
+  return Boolean(this.passwordHash) && bcrypt.compare(plain, this.passwordHash);
 };
 
 userSchema.statics.hashPassword = (plain) => bcrypt.hash(plain, 12);
@@ -28,6 +32,7 @@ userSchema.set('toJSON', {
   transform: (_doc, ret) => {
     delete ret.passwordHash;
     delete ret.passwordChangedAt;
+    delete ret.googleId;
     ret.avatarUrl = avatarUrlFor(ret);
     delete ret.avatarUpdatedAt;
     delete ret.__v;

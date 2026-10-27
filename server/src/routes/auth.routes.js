@@ -9,6 +9,8 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { env } from '../config/env.js';
 import { profileSummary } from '../services/profileService.js';
+import { verifyGoogleAccessToken } from '../services/googleToken.js';
+import { signInWithGoogle } from '../services/googleAuth.js';
 
 export const authRouter = Router();
 
@@ -54,6 +56,23 @@ authRouter.post('/login', authLimiter, validate(loginSchema), asyncHandler(async
   res.json({ user });
 }));
 
+// Which sign-in options this deployment offers. A Google client ID is public
+// by design (it is embedded in every page that shows the button).
+authRouter.get('/providers', (_req, res) => res.json({ google: env.GOOGLE_CLIENT_ID ?? null }));
+
+const googleSchema = z.object({
+  accessToken: z.string().min(1, 'Missing Google token').max(4096),
+  role: z.enum(ROLES).default('attendee'), // only used when this creates the account
+});
+
+authRouter.post('/google', authLimiter, validate(googleSchema), asyncHandler(async (req, res) => {
+  if (!env.GOOGLE_CLIENT_ID) throw new AppError(404, 'Google sign-in isn’t set up on this server', { code: 'GOOGLE_DISABLED' });
+  const profile = await verifyGoogleAccessToken(req.body.accessToken);
+  const { user, created } = await signInWithGoogle(profile, req.body.role);
+  setAuthCookie(res, signToken(user));
+  res.status(created ? 201 : 200).json({ user, created });
+}));
+
 authRouter.post('/logout', (_req, res) => {
   clearAuthCookie(res);
   res.status(204).end();
@@ -79,6 +98,9 @@ const passwordSchema = z.object({
 // Signs out every other device; this one gets a fresh session.
 authRouter.post('/password', authLimiter, requireAuth, validate(passwordSchema), asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select('+passwordHash');
+  if (!user.passwordHash) {
+    throw AppError.badRequest('This account signs in with Google, so there’s no password to change', { code: 'NO_PASSWORD' });
+  }
   if (!(await user.verifyPassword(req.body.currentPassword))) {
     throw new AppError(400, 'Your current password is incorrect', { code: 'WRONG_PASSWORD', details: [{ field: 'currentPassword', message: 'Incorrect password' }] });
   }
