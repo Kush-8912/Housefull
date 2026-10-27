@@ -104,6 +104,7 @@ export function Layout() {
           <div className="space-y-1 font-mono text-[11px] uppercase tracking-[0.12em] text-faint sm:text-right">
             <p>Demo payments only · no real money is charged</p>
             <p>Prices in INR · all times shown in your local time zone</p>
+            <p><Link to="/privacy" className="underline decoration-line-strong underline-offset-4 hover:text-signal">Privacy policy</Link></p>
           </div>
         </div>
       </footer>
