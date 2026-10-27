@@ -5,8 +5,11 @@ import { api } from '../../lib/api';
 import { dateTime, dayMonth } from '../../lib/format';
 import { Badge, EmptyState, ErrorState, PageLoader } from '../../components/States';
 import { Scramble } from '../../components/Motion';
+import { VerifiedBadge } from '../../components/VerifiedBadge';
+import { useAuth } from '../../context/AuthContext';
 
 export function OrganizerHome() {
+  const { user } = useAuth();
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
   const load = useCallback(() => { api('/events/mine').then((d) => { setItems(d.items); setError(null); }).catch(setError); }, []);
@@ -20,12 +23,19 @@ export function OrganizerHome() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="eyebrow">Organizer</p>
+          <p className="eyebrow flex flex-wrap items-center gap-3">Organizer {user?.verifiedHost && <VerifiedBadge />}</p>
           <h1 className="display mt-3 text-6xl sm:text-7xl"><Scramble text="Your events" /></h1>
           <p className="mt-3 text-sm text-muted">Create events, track sales and check guests in at the door.</p>
         </div>
         <Link to="/organizer/events/new" className="btn-primary"><CalendarPlus className="h-4 w-4" aria-hidden /> New event</Link>
       </div>
+
+      {!user?.verifiedHost && (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border border-warn/40 bg-warn/5 px-5 py-4">
+          <p className="text-sm text-fg"><span className="font-semibold">Verify your identity to sell tickets.</span> <span className="text-muted">You can build drafts now; publishing unlocks once your PAN is checked.</span></p>
+          <Link to="/profile#verify" className="btn-secondary">Verify now</Link>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="mt-10">

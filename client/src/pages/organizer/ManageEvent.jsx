@@ -14,6 +14,7 @@ import { CHECKIN_MESSAGES, CheckinResult } from '../../components/CheckinResult'
 import { SeatMap, previewSeats } from '../../components/SeatMap';
 import { Badge, EmptyState, ErrorState, FieldError, Notice, PageLoader, Spinner } from '../../components/States';
 import { CountUp } from '../../components/Motion';
+import { useAuth } from '../../context/AuthContext';
 
 export function ManageEvent() {
   const { id } = useParams();
@@ -25,6 +26,7 @@ export function ManageEvent() {
   const [showError, setShowError] = useState(null);
   const [tab, setTab] = useState('overview');
   const [dialog, setDialog] = useState(null); // 'publish' | 'delete' | 'cancel'
+  const verified = useAuth().user?.verifiedHost;
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -110,7 +112,11 @@ export function ManageEvent() {
             <>
               <button type="button" className="btn-ghost text-stop hover:text-stop" onClick={() => setDialog('delete')}><Trash2 className="h-4 w-4" aria-hidden /> Delete</button>
               <Link to={`/organizer/events/${id}/edit`} className="btn-secondary"><Pencil className="h-4 w-4" aria-hidden /> Edit</Link>
-              <button type="button" className="btn-primary" onClick={() => setDialog('publish')}><Rocket className="h-4 w-4" aria-hidden /> Publish</button>
+              {verified ? (
+                <button type="button" className="btn-primary" onClick={() => setDialog('publish')}><Rocket className="h-4 w-4" aria-hidden /> Publish</button>
+              ) : (
+                <Link to="/profile#verify" className="btn-primary"><Rocket className="h-4 w-4" aria-hidden /> Verify to publish</Link>
+              )}
             </>
           ) : (
             <>
@@ -148,6 +154,11 @@ export function ManageEvent() {
       {isDraft ? (
         <div className="mt-8 space-y-6">
           <Notice>This event is a draft and isn&apos;t visible to the public. The layout and prices lock once you publish.</Notice>
+          {!verified && (
+            <Notice tone="warn">
+              Tickets only go on sale from verified hosts. <Link to="/profile#verify" className="font-semibold text-fg underline decoration-signal underline-offset-4">Verify your identity</Link> (takes a minute), then publish.
+            </Notice>
+          )}
           <div className="card min-w-0 px-3 py-8 sm:px-8"><SeatMap rows={event.rows} tiers={event.tiers} seats={previewSeats(event.rows, event.tiers)} /></div>
           <Addons eventId={id} event={event} />
         </div>

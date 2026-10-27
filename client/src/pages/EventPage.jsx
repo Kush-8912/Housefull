@@ -15,6 +15,7 @@ import { downloadIcs } from '../lib/calendar';
 import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../components/States';
 import { CountUp, Words } from '../components/Motion';
 import { usePointer } from '../hooks/usePointer';
+import { VerifiedBadge } from '../components/VerifiedBadge';
 
 const MAX_SEATS = 8; // fallback; each event says its own limit (maxPerOrder) and the server enforces it
 
@@ -247,7 +248,10 @@ export function EventPage() {
               {event.onSale && event.salesCloseMinutes > 0 && <li>Sales close {dateTime(event.salesEndAt)}</li>}
             </ul>
           )}
-          <p className="eyebrow">Hosted by <span className="text-fg">{event.organizer?.name}</span></p>
+          <div className="space-y-1.5">
+            <p className="eyebrow">Hosted by <span className="text-fg">{event.organizer?.name}</span></p>
+            {event.organizer?.verifiedHost && <VerifiedBadge />}
+          </div>
         </aside>
       </div>
 
