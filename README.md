@@ -1,3 +1,5 @@
+<img src="client/public/favicon.svg" alt="Housefull logo: a theatre house full of seats" width="72" />
+
 # Housefull
 
 > *Get in before it's housefull.*
@@ -71,6 +73,21 @@ Housefull models each seat as its own record and treats a purchase as a short **
 6. **Ratings & reviews:** after a show, people who were actually scanned in at the door can rate it (1–5 stars + text), once per production, editable. The event page shows the average, the distribution and the reviews; cards show the rating.
 7. **Notifications:** a bell in the header lists waitlist alerts and received tickets, delivered live over a private per-user WebSocket room.
 
+## Look and feel
+
+The UI is themed as a dark auditorium with paper tickets, and the motion follows the same story of a house filling up:
+
+- **The logo** is a theatre "house" whose seats fill on load, front row first, with yours (cream) last; then the light in the gable comes on.
+- **Home:** a velvet-curtain intro on a visitor's first page of the session, follow-spots sweeping the hero, a headline that drifts apart as you scroll, and a *live house* canvas where seats sell out faster and faster until a HOUSEFULL sign stamps on.
+- **Navigation:** each new page opens out of a circle from where you clicked (the View Transitions API); headings settle like a departures board.
+- **Buying:** seats fill in as a wave from the stage, a picked seat jumps with a burst of its tier colour, and a seat someone else grabs flashes red live. Checkout digits tick over and the timer's heartbeat starts under a minute. After paying, confetti fires and the tickets print out one by one.
+
+How it's built, so it stays fast and accessible:
+
+- **No animation library.** Keyframes and Tailwind utilities, CSS scroll-driven animations behind `@supports`, the View Transitions API and one Canvas 2D component. The canvas pauses when it's off screen or the tab is hidden.
+- **Pointer effects write CSS variables** (tilt, glare, spotlights) instead of React state, so moving the mouse never re-renders the page.
+- **Respectful by default.** `prefers-reduced-motion` turns all of it off (CSS and JS). Cursor, tilt and magnetic effects only run on a mouse or trackpad. Screen readers get the real text of animated headings, and the curtain intro never plays on deep links such as a door-scan QR code.
+
 ## Tech Stack
 
 | Layer | Technology | Why |
@@ -83,6 +100,7 @@ Housefull models each seat as its own record and treats a purchase as a short **
 | Auth | JWT in an httpOnly cookie, bcrypt | No token in JS-readable storage; same-origin deployment means no cross-site cookie issues |
 | Security | Helmet (CSP), express-rate-limit, CORS | Sensible defaults plus brute-force protection on login/register |
 | Charts / QR | Recharts, qrcode.react, html5-qrcode | Dashboard chart, ticket QR rendering, camera scanning |
+| Motion | CSS keyframes and scroll-driven animations, View Transitions API, Canvas 2D | No animation library to ship; everything degrades gracefully and honours reduced motion |
 | Testing | Vitest, Supertest, mongodb-memory-server | Real HTTP and database integration tests, including concurrency races |
 | Hosting | Render (web service) + MongoDB Atlas | One service serves API + client |
 
@@ -289,10 +307,10 @@ housefull/
 ├── client/
 │   └── src/
 │       ├── pages/         Home, Event, Checkout, Tickets, Auth, organizer/*
-│       ├── components/    SeatMap, QrScanner, TicketCard, dialogs, states
-│       ├── hooks/         live event channel, countdown, debounce
+│       ├── components/    SeatMap, QrScanner, TicketCard, LiveHouse, Logo, dialogs, motion
+│       ├── hooks/         live event channel, countdown, debounce, pointer effects, page transitions
 │       ├── context/       auth
-│       └── lib/           API client, socket, formatting
+│       └── lib/           API client, socket, formatting, best seats, confetti
 ├── render.yaml
 └── .github/workflows/ci.yml
 ```
