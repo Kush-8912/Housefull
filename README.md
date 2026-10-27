@@ -10,7 +10,7 @@ Pick your exact seat on a live map, hold it for a few minutes while you pay, and
 
 | | |
 |---|---|
-| **Live app** | _add your Render URL here after deploying (see [Deployment](#deployment))_ |
+| **Live app** | **https://housefull-4eq8.onrender.com** (free tier: the first visit after a quiet spell takes ~30 s to wake up) |
 | **Demo video** | _add link_ |
 | **Demo logins** | `attendee@housefull.dev`, `friend@housefull.dev` (a second attendee to transfer tickets to), `organizer@housefull.dev`; password `demo1234`. Promo codes `EARLY20` and `STUDENT500`; the pottery workshop is seeded sold out (waitlist), Hamlet has three showtimes, several events have add-on menus, and *Sunday Jazz Brunch* already happened so `attendee@` can review it |
 | **Test card** | `4242 4242 4242 4242`, any future expiry, any CVC ([more](#test-cards)) |
@@ -265,7 +265,7 @@ All variables live in `server/.env` (template: [`server/.env.example`](server/.e
 | `HOLD_TTL_MINUTES` | no | `8` | How long seats stay held during checkout |
 | `MAX_SEATS_PER_HOLD` | no | `8` | Seat limit per order |
 | `CLIENT_ORIGIN` | no | `http://localhost:5173` | Only needed if the client is served from a different origin |
-| `APP_URL` | no | `CLIENT_ORIGIN` | Public URL of the app, used for links in emails (set to your Render URL in production) |
+| `APP_URL` | no | Render's URL, else `CLIENT_ORIGIN` | Public URL of the app, used for links in emails and share previews. On Render it defaults to the service's own URL (`RENDER_EXTERNAL_URL`) |
 | `SMTP_URL` | no | — | e.g. `smtps://user:pass@smtp.example.com:465`. Without it, development writes each email to `server/.mail-outbox/*.eml` (open with any mail app) instead of sending |
 | `BOOKING_FEE_PERCENT` | no | `5` | Booking fee on tickets (after discounts); 18% GST is added on the fee. `0` turns it off |
 | `MAIL_FROM` | no | `Housefull <tickets@housefull.dev>` | Sender address for emails |
@@ -281,7 +281,7 @@ The app deploys as **one Render web service** (API + client) backed by **MongoDB
 2. **Render:** *New → Blueprint*, then select this repository. [`render.yaml`](render.yaml) configures the build (`npm run install:all && npm run build`), the start command, the health check and auto-generated secrets.
 3. When prompted, set `MONGODB_URI` to your Atlas string.
 4. After the first deploy, seed the demo data from your machine: `MONGODB_URI="<atlas uri>" npm run seed`.
-5. Put the live URL at the top of this README.
+5. Put the live URL at the top of this README. This deployment: **https://housefull-4eq8.onrender.com**
 
 ### Google sign-in
 
