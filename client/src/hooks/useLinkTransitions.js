@@ -6,8 +6,9 @@ const EASE = 'cubic-bezier(0.7, 0, 0.3, 1)';
 
 /**
  * Clicking a link to another page plays a View Transition: the old page sinks
- * back and the new one opens out of a circle centred on the click. Browsers
- * without the API (or visitors who asked for less motion) navigate as usual.
+ * back and the new one opens out of a circle centred on the click (or on the
+ * link, when it was opened from the keyboard). Browsers without the API (or
+ * visitors who asked for less motion) navigate as usual.
  *
  * The listener runs in the capture phase, before React Router's own Link
  * handler, which then sees the click as handled and stays out of the way.
@@ -25,13 +26,21 @@ export function useLinkTransitions(navigate) {
       if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
 
       e.preventDefault();
+      // Keyboard "clicks" (Enter on a focused link) have no pointer position,
+      // so the circle opens from the middle of the link instead.
+      let { clientX: x, clientY: y } = e;
+      if (e.detail === 0) {
+        const r = a.getBoundingClientRect();
+        x = r.left + r.width / 2;
+        y = r.top + r.height / 2;
+      }
       const root = document.documentElement;
       root.classList.add('vt');
       const t = document.startViewTransition(() => flushSync(() => navigate(url.pathname + url.search + url.hash)));
       t.ready.then(() => {
-        const r = Math.hypot(Math.max(e.clientX, window.innerWidth - e.clientX), Math.max(e.clientY, window.innerHeight - e.clientY));
+        const r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
         root.animate(
-          { clipPath: [`circle(0px at ${e.clientX}px ${e.clientY}px)`, `circle(${r}px at ${e.clientX}px ${e.clientY}px)`] },
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
           { duration: 700, easing: EASE, pseudoElement: '::view-transition-new(root)' },
         );
         root.animate(
