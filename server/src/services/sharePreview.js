@@ -11,7 +11,7 @@ const when = (d) => new Intl.DateTimeFormat('en-IN', {
 export function eventMeta(event, appUrl) {
   const url = `${appUrl}/events/${event._id}`;
   const title = `${event.title} · Housefull`;
-  const description = `${when(event.startsAt)} IST at ${event.venue.name}, ${event.venue.city}. Pick your exact seat.`;
+  const description = `${when(event.startsAt)} IST at ${event.venue.name}, ${event.venue.city}. Pick your exact seat and get in before it’s housefull.`;
   const tags = [
     ['og:type', 'website'],
     ['og:site_name', 'Housefull'],

@@ -122,7 +122,8 @@ export function Layout() {
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:px-6">
           <div>
             <Logo className="text-fg" />
-            <p className="mt-3 max-w-xs text-sm text-muted">Reserved seating for gigs, comedy, theatre and talks. Pick the seat, not the section.</p>
+            <p className="display mt-4 text-3xl text-fg">Get in before it&apos;s <span className="text-signal">housefull.</span></p>
+            <p className="mt-2 max-w-xs text-sm text-muted">Reserved seating for gigs, comedy, theatre and talks. Pick the seat, not the section.</p>
           </div>
           <div className="space-y-1 font-mono text-[11px] uppercase tracking-[0.12em] text-faint sm:text-right">
             <p>Demo payments only · no real money is charged</p>

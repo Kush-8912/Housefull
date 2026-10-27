@@ -25,7 +25,7 @@ function layout({ preheader, heading, body, hero = null }) {
 <span style="display:none;max-height:0;overflow:hidden">${esc(preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1ebe0;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #cfc6b6">
-<tr><td style="background:#0c0b0a;padding:18px 24px;color:#ff5321;font-weight:800;font-size:20px;letter-spacing:-0.5px">HOUSEFULL</td></tr>
+<tr><td style="background:#0c0b0a;padding:18px 24px;font-weight:800;font-size:20px;letter-spacing:-0.5px"><span style="color:#f1ece3">HOUSE</span><span style="color:#ff5321">FULL</span><span style="float:right;margin-top:6px;font-weight:400;font-size:12px;letter-spacing:0;color:#a39d93">Get in before it’s housefull.</span></td></tr>
 ${heroRow}
 <tr><td style="padding:28px 24px 8px"><h1 style="margin:0;font-size:26px;line-height:1.15;text-transform:uppercase">${esc(heading)}</h1></td></tr>
 <tr><td style="padding:8px 24px 28px;font-size:15px;line-height:1.55">${body}</td></tr>

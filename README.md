@@ -1,5 +1,7 @@
 # Housefull
 
+> *Get in before it's housefull.*
+
 **Reserved-seat event ticketing where two people can never buy the same seat.**
 
 Pick your exact seat on a live map, hold it for a few minutes while you pay, and walk in with a signed QR ticket. Organizers design the seating layout, watch sales live, and check guests in by scanning QR codes at the door.
