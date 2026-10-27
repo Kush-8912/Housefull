@@ -4,13 +4,14 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { User, ROLES } from '../models/User.js';
 import { validate } from '../middleware/validate.js';
-import { requireAuth, signToken, setAuthCookie, clearAuthCookie } from '../middleware/auth.js';
+import { requireAuth, requireRole, signToken, setAuthCookie, clearAuthCookie } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { env } from '../config/env.js';
 import { profileSummary } from '../services/profileService.js';
 import { verifyGoogleAccessToken } from '../services/googleToken.js';
 import { signInWithGoogle } from '../services/googleAuth.js';
+import { KycError, verifyPan } from '../services/kycService.js';
 
 export const authRouter = Router();
 
@@ -109,6 +110,29 @@ authRouter.post('/password', authLimiter, requireAuth, validate(passwordSchema),
   await user.save();
   setAuthCookie(res, signToken(user));
   res.status(204).end();
+}));
+
+const hostVerificationSchema = z.object({
+  legalName: z.string().trim().min(3, 'Enter your name as it is on your PAN card').max(100),
+  pan: z.string().trim().toUpperCase().length(10, 'A PAN has 10 characters'),
+});
+const KYC_STATUS = { PAN_INVALID: 400, PAN_NOT_FOUND: 422, PAN_NAME_MISMATCH: 422, KYC_UNAVAILABLE: 503 };
+
+// Organizer identity check. Publishing is blocked until this succeeds.
+authRouter.post('/me/host-verification', authLimiter, requireAuth, requireRole('organizer'), validate(hostVerificationSchema), asyncHandler(async (req, res) => {
+  if (req.user.hostVerification?.verifiedAt) throw AppError.conflict('You’re already a verified host', { code: 'ALREADY_VERIFIED' });
+  let result;
+  try {
+    result = await verifyPan(req.body);
+  } catch (err) {
+    if (!(err instanceof KycError)) throw err;
+    const field = err.code === 'PAN_NAME_MISMATCH' ? 'legalName' : 'pan';
+    const details = err.code === 'KYC_UNAVAILABLE' ? undefined : [{ field, message: err.message }];
+    throw new AppError(KYC_STATUS[err.code], err.message, { code: err.code, details });
+  }
+  req.user.hostVerification = { legalName: req.body.legalName, ...result, verifiedAt: new Date() };
+  await req.user.save();
+  res.json({ user: req.user });
 }));
 
 // Real image files start with these bytes; checking them means a renamed

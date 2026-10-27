@@ -29,14 +29,23 @@ export const app = createApp();
 export const TEST_PASSWORD = 'Password123!';
 
 let counter = 0;
+// A PAN that passes the demo KYC check for the name 'Test Organiser'.
+export const TEST_HOST = { legalName: 'Test Organiser', pan: 'ABCPO1234K' };
+
 // Returns a supertest agent that keeps the auth cookie, plus the created user.
-export async function signUp(role = 'attendee') {
+// Organizers are verified hosts (so they can publish) unless `verified: false`.
+export async function signUp(role = 'attendee', { verified = true } = {}) {
   counter += 1;
   const agent = request.agent(app);
   const res = await agent
     .post('/api/auth/register')
     .send({ name: `${role} ${counter}`, email: `${role}${counter}@test.dev`, password: TEST_PASSWORD, role });
   if (res.status !== 201) throw new Error(`signup failed: ${JSON.stringify(res.body)}`);
+  if (role === 'organizer' && verified) {
+    const v = await agent.post('/api/auth/me/host-verification').send(TEST_HOST);
+    if (v.status !== 200) throw new Error(`host verification failed: ${JSON.stringify(v.body)}`);
+    return { agent, user: v.body.user };
+  }
   return { agent, user: res.body.user };
 }
 

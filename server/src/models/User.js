@@ -16,6 +16,12 @@ const userSchema = new mongoose.Schema(
     // Login tokens issued before this are rejected, so changing the password
     // signs out every other device.
     passwordChangedAt: { type: Date, default: null, select: false },
+    // Organizers verify their identity (PAN, via kycService) before they can
+    // publish. Only the PAN's last 4 characters are kept.
+    hostVerification: {
+      type: new mongoose.Schema({ legalName: String, holderType: String, panLast4: String, verifiedAt: Date }, { _id: false }),
+      default: null,
+    },
     // Set when a profile photo is uploaded; doubles as the photo's cache-busting version.
     avatarUpdatedAt: { type: Date, default: null },
   },
@@ -33,6 +39,7 @@ userSchema.set('toJSON', {
     delete ret.passwordHash;
     delete ret.passwordChangedAt;
     delete ret.googleId;
+    if ('hostVerification' in ret) ret.verifiedHost = Boolean(ret.hostVerification?.verifiedAt);
     ret.avatarUrl = avatarUrlFor(ret);
     delete ret.avatarUpdatedAt;
     delete ret.__v;
