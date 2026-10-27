@@ -20,6 +20,10 @@ const schema = z.object({
   MAIL_FROM: z.string().default('Housefull <tickets@housefull.dev>'),
   // Public URL of the app, used for links inside emails.
   APP_URL: z.string().optional(),
+  // Optional: Razorpay API keys (test mode: rzp_test_...). With both set,
+  // checkout takes payment through Razorpay; without them, the demo processor.
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
   // Optional: OAuth client ID for "Continue with Google" (Google Cloud console,
   // a Web application client). Without it the button is hidden.
   GOOGLE_CLIENT_ID: z.string().optional(),
