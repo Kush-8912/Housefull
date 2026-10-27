@@ -216,6 +216,19 @@
     outline-offset: 2px;
   }
   input[type='number']::-webkit-inner-spin-button { opacity: 0.4; }
+  /*
+   * Page changes: the old page sinks back while the new one opens out of a
+   * circle from where you clicked (driven from useLinkTransitions). The
+   * header is its own layer so it stays put.
+   */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+  header { view-transition-name: site-header; }
+  .vt .animate-page { animation: none; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;

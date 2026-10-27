@@ -7,6 +7,7 @@ import { Avatar } from './Avatar';
 import { CityPicker } from './CityPicker';
 import { Logo } from './Logo';
 import { CurtainIntro, CursorFx } from './Stagecraft';
+import { useLinkTransitions } from '../hooks/useLinkTransitions';
 
 const navClass = ({ isActive }) =>
   `relative px-3 py-2 font-mono text-[12px] font-medium uppercase tracking-[0.12em] transition-colors ${
@@ -28,6 +29,7 @@ export function Layout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   useScrollReset();
+  useLinkTransitions(navigate);
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip">
