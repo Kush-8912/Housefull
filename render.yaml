@@ -23,8 +23,12 @@ services:
         value: "8"
       - key: APP_URL
         sync: false # your Render URL, for links in emails
+      - key: GMAIL_CLIENT_SECRET
+        sync: false # email via the Gmail API (HTTPS); the free plan blocks SMTP ports
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false # refresh token with the gmail.send scope, for the MAIL_FROM account
       - key: SMTP_URL
-        sync: false # optional: SMTP credentials to actually send email
+        sync: false # optional: SMTP credentials (paid Render plans only)
       - key: MAIL_FROM
         sync: false # the address emails come from, e.g. Housefull <housefull.tickets@gmail.com>
       - key: GOOGLE_CLIENT_ID

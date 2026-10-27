@@ -266,7 +266,8 @@ All variables live in `server/.env` (template: [`server/.env.example`](server/.e
 | `MAX_SEATS_PER_HOLD` | no | `8` | Seat limit per order |
 | `CLIENT_ORIGIN` | no | `http://localhost:5173` | Only needed if the client is served from a different origin |
 | `APP_URL` | no | Render's URL, else `CLIENT_ORIGIN` | Public URL of the app, used for links in emails and share previews. On Render it defaults to the service's own URL (`RENDER_EXTERNAL_URL`) |
-| `SMTP_URL` | no | — | e.g. `smtps://user:pass@smtp.example.com:465`. Without it, development writes each email to `server/.mail-outbox/*.eml` (open with any mail app) instead of sending |
+| `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | no | — | Send email through the **Gmail API over HTTPS** as the `MAIL_FROM` account (needed on Render's free plan, which blocks SMTP ports). The OAuth client is `GMAIL_CLIENT_ID`, or `GOOGLE_CLIENT_ID` if unset; the refresh token needs the `gmail.send` scope. Takes priority over `SMTP_URL` |
+| `SMTP_URL` | no | — | e.g. `smtps://user:pass@smtp.example.com:465`. Without it (or the Gmail keys), development writes each email to `server/.mail-outbox/*.eml` (open with any mail app) instead of sending |
 | `BOOKING_FEE_PERCENT` | no | `5` | Booking fee on tickets (after discounts); 18% GST is added on the fee. `0` turns it off |
 | `MAIL_FROM` | no | `Housefull <tickets@housefull.dev>` | Sender address for emails |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | no | — | Turns on Razorpay checkout (see [Payments](#payments-razorpay-or-the-demo-processor)). Without them the demo card processor is used |
@@ -367,5 +368,5 @@ housefull/
 
 - **Razorpay without webhooks.** Payments are confirmed when the browser returns from Razorpay's window; if a buyer closes the tab in that exact moment, the payment is captured without an order. Production would add Razorpay's `payment.captured` webhook to reconcile or refund those.
 - **Single-instance realtime.** Running several server instances would need the Socket.IO Redis adapter so broadcasts reach every instance.
-- **Email needs an SMTP provider in production.** Without `SMTP_URL`, emails are written to local `.eml` files. Sending is fire-and-forget (a mail outage never blocks a checkout), so there are no retries yet; a queue would add those.
+- **Email needs a provider in production:** the Gmail API (HTTPS) or `SMTP_URL`. Render's free plan blocks outgoing SMTP ports, so the live site uses the Gmail API. Without either, emails are written to local `.eml` files. Sending is fire-and-forget (a mail outage never blocks a checkout), so there are no retries yet; a queue would add those.
 - **One organizer account per event.** There's no separate door-staff role yet; the organizer scans tickets.
