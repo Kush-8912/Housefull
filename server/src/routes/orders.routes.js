@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { Order } from '../models/Order.js';
 import { Ticket, SEAT_ORDER } from '../models/Ticket.js';
+import { seriesKey } from '../models/Event.js';
+import { Survey } from '../models/Survey.js';
+import { SurveyResponse } from '../models/SurveyResponse.js';
 import { validate } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -39,7 +42,7 @@ export const ordersRouter = Router();
 ordersRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id, status: { $in: ['paid', 'cancelled', 'refunded'] } })
     .sort({ createdAt: -1 })
-    .populate('event', 'title venue startsAt durationMinutes description status category coverImageUrl cancellationPolicy rescheduledAt');
+    .populate('event', 'title venue startsAt durationMinutes description status category coverImageUrl cancellationPolicy rescheduledAt seriesId');
   // Only tickets this user holds: after a transfer the recipient's new ticket
   // shares the order, and its QR code must never be shown to the sender.
   const tickets = await Ticket.find({ order: { $in: orders.map((o) => o._id) }, user: req.user._id })
@@ -57,10 +60,19 @@ ordersRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
     tickets: ts.map((t) => ({ ...withQr(t), event: undefined, transferredFrom: undefined, from: t.transferredFrom?.user?.name ?? null })),
   }));
 
+  // Which of these shows have an organizer's feedback form, and which this user has answered.
+  const surveys = await Survey.find({ series: { $in: orders.map((o) => seriesKey(o.event)) } }, 'series').lean();
+  const answered = new Set((await SurveyResponse.find({ survey: { $in: surveys.map((s) => s._id) }, user: req.user._id }, 'survey').lean()).map((r) => String(r.survey)));
+  const surveyBySeries = new Map(surveys.map((s) => [String(s.series), s]));
+  const feedbackFor = (event) => {
+    const s = surveyBySeries.get(String(seriesKey(event)));
+    return s ? { form: true, answered: answered.has(String(s._id)) } : { form: false, answered: false };
+  };
+
   res.json({
     items: orders.map((o) => {
       const mine = byOrder.get(String(o._id)) ?? [];
-      return { ...o.toJSON(), tickets: mine.map(withQr), cancellation: cancellationFor(o, o.event, mine) };
+      return { ...o.toJSON(), tickets: mine.map(withQr), cancellation: cancellationFor(o, o.event, mine), feedback: feedbackFor(o.event) };
     }),
     received: receivedByEvent,
   });

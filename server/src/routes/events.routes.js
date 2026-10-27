@@ -18,6 +18,9 @@ import { CANCELLATION_POLICIES } from '../services/refundPolicy.js';
 import { listEvents, decorate, showsFor } from '../services/discoveryService.js';
 import { reviewsFor, saveReview, deleteReview } from '../services/reviewService.js';
 import { joinWaitlist, leaveWaitlist, waitlistStatus } from '../services/waitlistService.js';
+import { Survey, QUESTION_KINDS } from '../models/Survey.js';
+import { saveSurvey, submitResponse, surveyForAttendee, surveyResults } from '../services/surveyService.js';
+import { suggestQuestions, writeInsights } from '../services/surveyAi.js';
 
 export const eventsRouter = Router();
 
@@ -317,4 +320,67 @@ eventsRouter.delete('/:id/reviews', requireAuth, asyncHandler(async (req, res) =
   const event = await loadPublicEvent(req);
   await deleteReview({ event, user: req.user });
   res.status(204).end();
+}));
+
+// ---- Feedback forms ------------------------------------------------------------
+// The organizer builds a form for a production; people who were checked in
+// answer it; the organizer gets the numbers and an AI (or built-in) summary.
+
+const questionBody = z.object({
+  kind: z.enum(QUESTION_KINDS, 'Pick a question type'),
+  label: z.string().trim().min(3, 'Write the question').max(140, 'Keep questions under 140 characters'),
+  options: z.array(z.string().trim().min(1).max(60, 'Keep options under 60 characters')).max(8, 'At most 8 options').default([]),
+  required: z.boolean().default(false),
+}).transform((q) => ({ ...q, options: ['choice', 'multi'].includes(q.kind) ? [...new Set(q.options)] : [] }))
+  .refine((q) => !['choice', 'multi'].includes(q.kind) || q.options.length >= 2, { path: ['options'], message: 'Give at least 2 different options' });
+
+const surveyBody = z.object({
+  title: z.string().trim().min(3, 'Give the form a title').max(100),
+  intro: z.string().trim().max(300).default(''),
+  questions: z.array(questionBody).min(1, 'Add at least one question').max(12, 'At most 12 questions'),
+});
+
+// What the organizer's dashboard shows: the form, the results and the last summary.
+async function surveyDashboard(event) {
+  const survey = await Survey.findOne({ series: seriesKey(event) });
+  return { survey, results: survey ? await surveyResults(survey) : null };
+}
+
+eventsRouter.get('/:id/survey', asyncHandler(async (req, res) => {
+  const event = await loadPublicEvent(req);
+  const viewer = verifyToken(req.cookies?.[AUTH_COOKIE]);
+  res.json(await surveyForAttendee(event, viewer ? { _id: new mongoose.Types.ObjectId(viewer.sub) } : null));
+}));
+
+eventsRouter.post('/:id/survey/responses', requireAuth,
+  validate(z.object({ answers: z.array(z.object({ question: z.string().max(40), value: z.unknown().optional() })).max(30) })),
+  asyncHandler(async (req, res) => {
+    const event = await loadPublicEvent(req);
+    res.json(await submitResponse(event, req.user, req.body.answers));
+  }));
+
+eventsRouter.get('/:id/survey/manage', requireAuth, requireRole('organizer'), asyncHandler(async (req, res) => {
+  res.json(await surveyDashboard(await loadOwnedEvent(req)));
+}));
+
+eventsRouter.put('/:id/survey', requireAuth, requireRole('organizer'), validate(surveyBody), asyncHandler(async (req, res) => {
+  const event = await loadOwnedEvent(req);
+  await saveSurvey(event, req.user, req.body);
+  res.json(await surveyDashboard(event));
+}));
+
+// Draft questions for this event (Claude, or a template for its category). Not saved.
+eventsRouter.post('/:id/survey/suggest', requireAuth, requireRole('organizer'), asyncHandler(async (req, res) => {
+  res.json(await suggestQuestions(await loadOwnedEvent(req)));
+}));
+
+// Read the answers so far and write the summary (cached on the form).
+eventsRouter.post('/:id/survey/insights', requireAuth, requireRole('organizer'), asyncHandler(async (req, res) => {
+  const event = await loadOwnedEvent(req);
+  const survey = await Survey.findOne({ series: seriesKey(event) });
+  if (!survey) throw AppError.notFound('Feedback form');
+  survey.insights = await writeInsights(event, await surveyResults(survey));
+  survey.markModified('insights');
+  await survey.save();
+  res.json(await surveyDashboard(event));
 }));
