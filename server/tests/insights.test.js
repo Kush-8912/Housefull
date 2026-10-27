@@ -23,7 +23,7 @@ async function buy(buyer, eventId, seats) {
 }
 const scan = (org, id, ticket) => org.agent.post(`/api/events/${id}/checkin`).send({ qr: ticket.qr }).expect(200);
 // Everything sent to one person except order confirmations, which every buyer gets.
-const inOutbox = (to) => testOutbox.filter((m) => m.to === to && !m.subject.startsWith('Your tickets'));
+const inOutbox = (to) => testOutbox.filter((m) => m.to === to && !m.subject.startsWith('Your tickets') && !m.subject.startsWith('Welcome'));
 
 describe('detailed feedback', () => {
   it('keeps aspect ratings and the private note away from the public reviews', async () => {

@@ -64,3 +64,27 @@ describe('Continue with Google', () => {
     expect(change.body.error.code).toBe('NO_PASSWORD');
   });
 });
+
+describe('welcome emails', () => {
+  it('welcomes new accounts once, with role-specific steps; returning Google users get none', async () => {
+    const { testOutbox } = await import('../src/services/mailer.js');
+    const { backgroundIdle } = await import('../src/utils/background.js');
+    testOutbox.length = 0;
+    const buyer = await signUp('attendee');
+    const host = await signUp('organizer', { verified: false });
+    await backgroundIdle();
+    const toBuyer = testOutbox.filter((m) => m.to === buyer.user.email);
+    expect(toBuyer).toHaveLength(1);
+    expect(toBuyer[0].subject).toMatch(/^Welcome to Housefull, /);
+    expect(toBuyer[0].html).toContain('Find a show');
+    const toHost = testOutbox.find((m) => m.to === host.user.email);
+    expect(toHost.subject).toBe('Welcome to Housefull: start selling tickets');
+    expect(toHost.html).toContain('/profile#verify');
+
+    asGoogle({ googleId: 'g-welcome', email: 'new.google@gmail.com' });
+    await google(request.agent(app)).expect(201);
+    await google(request.agent(app)).expect(200); // signing in again
+    await backgroundIdle();
+    expect(testOutbox.filter((m) => m.to === 'new.google@gmail.com')).toHaveLength(1);
+  });
+});

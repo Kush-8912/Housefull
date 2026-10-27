@@ -52,7 +52,7 @@ describe('order confirmation email', () => {
     await buy(buyer.agent, id, seats.slice(0, 2));
     await backgroundIdle();
 
-    const mail = testOutbox.find((m) => m.to === buyer.user.email);
+    const mail = testOutbox.find((m) => m.to === buyer.user.email && m.subject.startsWith('Your tickets'));
     expect(mail.subject).toBe('Your tickets: Email Fest');
     expect(mail.attachments).toHaveLength(2);
     expect(mail.html).toContain(`cid:${mail.attachments[0].cid}`);
@@ -66,7 +66,7 @@ describe('order confirmation email', () => {
     const { id, seats } = await publishedEvent(org);
     await buy(buyer.agent, id, [seats[0]]);
     await backgroundIdle();
-    const mail = testOutbox.find((m) => m.to === buyer.user.email);
+    const mail = testOutbox.find((m) => m.to === buyer.user.email && m.subject.startsWith('Your tickets'));
     expect(mail.html).not.toContain('<script>');
     expect(mail.html).toContain('&lt;script&gt;');
   });

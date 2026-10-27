@@ -12,6 +12,8 @@ import { profileSummary } from '../services/profileService.js';
 import { verifyGoogleAccessToken } from '../services/googleToken.js';
 import { signInWithGoogle } from '../services/googleAuth.js';
 import { KycError, verifyPan } from '../services/kycService.js';
+import { sendMail } from '../services/mailer.js';
+import { welcomeEmail } from '../services/emails.js';
 
 export const authRouter = Router();
 
@@ -44,6 +46,7 @@ authRouter.post('/register', authLimiter, validate(registerSchema), asyncHandler
   if (await User.exists({ email })) throw AppError.conflict('An account with this email already exists');
   const user = await User.create({ name, email, role, passwordHash: await User.hashPassword(password) });
   setAuthCookie(res, signToken(user));
+  sendMail(welcomeEmail({ user })); // in the background: a slow mail server never delays sign-up
   res.status(201).json({ user });
 }));
 
@@ -71,6 +74,7 @@ authRouter.post('/google', authLimiter, validate(googleSchema), asyncHandler(asy
   const profile = await verifyGoogleAccessToken(req.body.accessToken);
   const { user, created } = await signInWithGoogle(profile, req.body.role);
   setAuthCookie(res, signToken(user));
+  if (created) sendMail(welcomeEmail({ user }));
   res.status(created ? 201 : 200).json({ user, created });
 }));
 
