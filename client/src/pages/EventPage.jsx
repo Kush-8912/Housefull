@@ -14,6 +14,7 @@ import { findBestSeats } from '../lib/bestSeats';
 import { downloadIcs } from '../lib/calendar';
 import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../components/States';
 import { CountUp, Words } from '../components/Motion';
+import { usePointer } from '../hooks/usePointer';
 
 const MAX_SEATS = 8; // fallback; each event says its own limit (maxPerOrder) and the server enforces it
 
@@ -32,6 +33,7 @@ export function EventPage() {
   // Our own hold request broadcasts 'held' for our seats before the HTTP
   // response arrives; those must not be reported as taken by someone else.
   const holdingRef = useRef(false);
+  const mapLight = usePointer();
 
   const load = useCallback(async () => {
     try {
@@ -194,7 +196,13 @@ export function EventPage() {
       {hold && <ActiveHoldBanner hold={hold} onReleased={load} />}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_18rem]">
-        <section className="card min-w-0 px-3 py-8 sm:px-8" aria-label="Seat map">
+        <section ref={mapLight} className="card group/map relative min-w-0 px-3 py-8 sm:px-8" aria-label="Seat map">
+          {/* A pool of house light follows the pointer across the seats. */}
+          <span
+            className="pointer-events-none absolute inset-0 z-10 opacity-0 mix-blend-screen transition-opacity duration-500 group-hover/map:opacity-100"
+            style={{ background: 'radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(255 150 100 / 0.14), transparent 60%)' }}
+            aria-hidden
+          />
           {event.status === 'draft' ? (
             <p className="py-10 text-center text-sm text-muted">This is a draft. Seats are created when you publish it.</p>
           ) : (

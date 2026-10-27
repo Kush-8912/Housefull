@@ -1,14 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { canHover } from '../lib/motion';
 
 // Tracks the pointer over the element and writes its position as CSS
 // variables (--mx/--my in px, --gx/--gy in %), plus --rx/--ry tilt angles
 // when `tilt` is set. Styles do the rest, so React never re-renders.
+// Returns a callback ref, so it also works on elements that appear later
+// (after a loading state) and cleans up when they go.
 export function usePointer({ tilt = 0 } = {}) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const el = ref.current;
+  return useCallback((el) => {
     if (!el || !canHover()) return undefined;
     let frame = 0;
     const set = (vars) => {
@@ -36,6 +35,4 @@ export function usePointer({ tilt = 0 } = {}) {
       el.removeEventListener('pointerleave', leave);
     };
   }, [tilt]);
-
-  return ref;
 }
