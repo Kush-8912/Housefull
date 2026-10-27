@@ -7,7 +7,7 @@ import { useDebounced } from '../hooks/useDebounced';
 import { setCityPref, useCityPref } from '../lib/cityPref';
 import { EventCard } from '../components/EventCard';
 import { EmptyState, ErrorState, Spinner } from '../components/States';
-import { CountUp, Mask, Words } from '../components/Motion';
+import { CountUp, Mask, Scramble, Words } from '../components/Motion';
 import { LiveHouse } from '../components/LiveHouse';
 import { usePointer } from '../hooks/usePointer';
 
@@ -102,10 +102,10 @@ export function HomePage() {
           Live seat maps{lineup && <> · <CountUp value={lineup.total} /> event{lineup.total === 1 ? '' : 's'} on sale</>}
         </p>
         <h1 className="display mt-6 text-[clamp(3.6rem,12.5vw,10.5rem)]">
-          <Words delay={100} step={90}>Pick the seat.</Words>
-          <br />
-          <Words delay={370} step={90} className="text-transparent [-webkit-text-stroke:2px_var(--color-fg)] sm:[-webkit-text-stroke-width:3px]">Not the</Words>{' '}
-          <Mask delay={560}><span className="text-shine">section.</span></Mask>
+          {/* Each line drifts its own way as you scroll past. */}
+          <span className="drift-left block"><Words delay={100} step={90}>Pick the seat.</Words></span>
+          <span className="drift-right inline-block"><Words delay={370} step={90} className="text-transparent [-webkit-text-stroke:2px_var(--color-fg)] sm:[-webkit-text-stroke-width:3px]">Not the</Words></span>{' '}
+          <span className="drift-zoom inline-block"><Mask delay={560}><span className="text-shine">section.</span></Mask></span>
         </h1>
         <div className="mt-10 grid gap-8 border-t border-line pt-8 md:grid-cols-[1.1fr_2fr]">
           <p className="max-w-sm animate-rise text-[15px] leading-relaxed text-muted [animation-delay:700ms]">
@@ -132,7 +132,7 @@ export function HomePage() {
 
       <section className="pt-14" aria-labelledby="on-sale">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="on-sale" className="display text-5xl sm:text-6xl">On sale</h2>
+          <h2 id="on-sale" className="display text-5xl sm:text-6xl"><Scramble text="On sale" /></h2>
           <label className="relative w-full sm:w-80">
             <span className="sr-only">Search events</span>
             <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" aria-hidden />
@@ -217,7 +217,7 @@ function NextUp({ items }) {
   const soonest = [...items].sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt)).slice(0, 5);
   return (
     <section className="pt-4" aria-labelledby="next-up">
-      <h2 id="next-up" className="eyebrow border-b border-line-strong pb-3 text-fg">Next up</h2>
+      <h2 id="next-up" className="eyebrow border-b border-line-strong pb-3 text-fg"><Scramble text="Next up" /></h2>
       <ul>
         {soonest.map((e, i) => <NextUpRow key={e.id} event={e} index={i} />)}
       </ul>

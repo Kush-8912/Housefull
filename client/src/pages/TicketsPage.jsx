@@ -8,7 +8,7 @@ import { TicketCard } from '../components/TicketCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { downloadIcs } from '../lib/calendar';
 import { Badge, EmptyState, ErrorState, FieldError, PageLoader } from '../components/States';
-import { Mask } from '../components/Motion';
+import { Mask, Scramble } from '../components/Motion';
 import { confetti } from '../lib/confetti';
 
 function OrderCard({ order, cutoffHours, onCancelled, defaultOpen }) {
@@ -218,7 +218,7 @@ export function TicketsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <p className="eyebrow">Your wallet</p>
-      <h1 className="display mt-3 text-6xl sm:text-7xl">My tickets</h1>
+      <h1 className="display mt-3 text-6xl sm:text-7xl"><Scramble text="My tickets" /></h1>
       <p className="mt-4 max-w-lg text-sm text-muted">Show the QR code at the door. You can cancel for a full refund up to {data.cancellationCutoffHours} hours before an event starts.</p>
       {data.received.length > 0 && <Received groups={data.received} onChange={load} />}
       {data.items.length === 0 && data.received.length === 0 ? (

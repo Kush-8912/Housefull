@@ -4,6 +4,7 @@ import { Heart } from 'lucide-react';
 import { api } from '../lib/api';
 import { EventCard } from '../components/EventCard';
 import { EmptyState, ErrorState, PageLoader } from '../components/States';
+import { Scramble } from '../components/Motion';
 
 // Events the attendee tapped "Interested" on.
 export function SavedPage() {
@@ -22,7 +23,7 @@ export function SavedPage() {
   return (
     <div>
       <p className="eyebrow">Your list</p>
-      <h1 className="display mt-3 text-6xl sm:text-7xl">Saved</h1>
+      <h1 className="display mt-3 text-6xl sm:text-7xl"><Scramble text="Saved" /></h1>
       <p className="mt-4 max-w-lg text-sm text-muted">Events you marked as interested. Organizers see how many people are interested, not who.</p>
       {items.length === 0 ? (
         <div className="mt-10">

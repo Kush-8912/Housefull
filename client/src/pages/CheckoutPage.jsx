@@ -7,6 +7,7 @@ import { amount, dateTime, money } from '../lib/format';
 import { BillLines } from '../components/BillLines';
 import { mmss, useCountdown } from '../hooks/useCountdown';
 import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../components/States';
+import { Scramble } from '../components/Motion';
 
 const TEST_CARDS = [
   ['4242 4242 4242 4242', 'Succeeds'],
@@ -103,7 +104,7 @@ export function CheckoutPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <p className="eyebrow">Checkout · step 2 of 2</p>
-      <h1 className="display mt-3 text-6xl sm:text-7xl">Pay &amp; go.</h1>
+      <h1 className="display mt-3 text-6xl sm:text-7xl"><Scramble text="Pay & go." /></h1>
 
       <div className="mt-10 grid gap-10 md:grid-cols-[1fr_21rem]">
         <form onSubmit={submit} noValidate className="order-2 md:order-1">

@@ -175,6 +175,15 @@
   from { transform: rotate(30deg); }
   to { transform: rotate(-12deg); }
 }
+@keyframes drift-left {
+  to { transform: translateX(-14%); opacity: 0.12; }
+}
+@keyframes drift-right {
+  to { transform: translateX(16%); opacity: 0.12; }
+}
+@keyframes drift-zoom {
+  to { transform: scale(1.3); opacity: 0; filter: blur(10px); }
+}
 @keyframes curtain-l {
   to { transform: translateX(-101%) skewX(-4deg); }
 }
@@ -378,6 +387,30 @@
     animation-range: entry 0% entry 55%;
   }
 }
+/* The hero headline breaks apart as you scroll away from it. */
+@utility drift-left {
+  @supports (animation-timeline: scroll()) {
+    animation: drift-left linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 85vh;
+  }
+}
+@utility drift-right {
+  @supports (animation-timeline: scroll()) {
+    animation: drift-right linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 85vh;
+  }
+}
+@utility drift-zoom {
+  transform-origin: 0 60%;
+  @supports (animation-timeline: scroll()) {
+    animation: drift-zoom linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 85vh;
+  }
+}
+
 /* Theatre curtain: velvet folds with light catching each one. */
 @utility velvet {
   background:

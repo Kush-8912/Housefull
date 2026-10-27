@@ -4,6 +4,7 @@ import { CalendarPlus, ChevronRight } from 'lucide-react';
 import { api } from '../../lib/api';
 import { dateTime, dayMonth } from '../../lib/format';
 import { Badge, EmptyState, ErrorState, PageLoader } from '../../components/States';
+import { Scramble } from '../../components/Motion';
 
 export function OrganizerHome() {
   const [items, setItems] = useState(null);
@@ -20,7 +21,7 @@ export function OrganizerHome() {
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <p className="eyebrow">Organizer</p>
-          <h1 className="display mt-3 text-6xl sm:text-7xl">Your events</h1>
+          <h1 className="display mt-3 text-6xl sm:text-7xl"><Scramble text="Your events" /></h1>
           <p className="mt-3 text-sm text-muted">Create events, track sales and check guests in at the door.</p>
         </div>
         <Link to="/organizer/events/new" className="btn-primary"><CalendarPlus className="h-4 w-4" aria-hidden /> New event</Link>
