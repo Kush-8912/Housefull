@@ -7,6 +7,7 @@ import { CATEGORY_LABELS } from '../../lib/format';
 import { SeatMap, previewSeats } from '../../components/SeatMap';
 import { ErrorState, FieldError, PageLoader, Spinner } from '../../components/States';
 import { LAYOUT_TEMPLATES } from '../../lib/layoutTemplates';
+import { CANCELLATION_POLICIES, POLICY_SMALL_PRINT } from '../../lib/refundPolicy';
 
 const PALETTE = ['#e11d48', '#7c3aed', '#0891b2', '#ea580c', '#16a34a', '#ca8a04'];
 const MAX_CAPACITY = 1500;
@@ -35,7 +36,7 @@ const blank = () => ({
     ...'ABC'.split('').map((label) => ({ label, seats: 12, tier: 'Premium', aisleAfter: [6], blocked: [], accessible: [] })),
     ...'DEFG'.split('').map((label) => ({ label, seats: 14, tier: 'Standard', aisleAfter: [7], blocked: [], accessible: [] })),
   ],
-  maxPerOrder: MAX_PER_ORDER, salesOpen: 'publish', salesStartAt: '', salesCloseMinutes: 0,
+  maxPerOrder: MAX_PER_ORDER, salesOpen: 'publish', salesStartAt: '', salesCloseMinutes: 0, cancellationPolicy: 'standard',
 });
 
 // Next row label after the last one: A..Z, then AA, AB, ...
@@ -72,6 +73,7 @@ export function EventEditor() {
           salesOpen: event.salesStartAt ? 'scheduled' : 'publish',
           salesStartAt: event.salesStartAt ? toLocalInput(event.salesStartAt) : '',
           salesCloseMinutes: event.salesCloseMinutes ?? 0,
+          cancellationPolicy: event.cancellationPolicy ?? 'standard',
         });
       })
       .catch(setLoadError);
@@ -148,6 +150,7 @@ export function EventEditor() {
       maxPerOrder: Number(form.maxPerOrder) || null,
       salesStartAt: form.salesOpen === 'scheduled' && form.salesStartAt ? new Date(form.salesStartAt).toISOString() : null,
       salesCloseMinutes: Number(form.salesCloseMinutes) || 0,
+      cancellationPolicy: form.cancellationPolicy,
     };
     if (form.salesOpen === 'scheduled' && !form.salesStartAt) {
       setError({ message: 'Choose when sales open', fieldErrors: { salesStartAt: 'Pick a date and time' } });
@@ -375,6 +378,20 @@ export function EventEditor() {
           <p className="mt-1.5 text-xs text-faint">Tickets already sold can still be transferred until the show starts.</p>
           <FieldError message={fe.salesCloseMinutes} />
         </div>
+        <fieldset className="md:col-span-3">
+          <legend className="label">Cancellation policy</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {Object.entries(CANCELLATION_POLICIES).map(([value, p]) => (
+              <label key={value} className={`cursor-pointer border px-4 py-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal ${form.cancellationPolicy === value ? 'border-signal bg-signal/10' : 'border-line-strong hover:border-faint'}`}>
+                <input type="radio" name="cancellationPolicy" value={value} className="sr-only" checked={form.cancellationPolicy === value} onChange={() => set({ cancellationPolicy: value })} />
+                <span className="block text-sm font-semibold text-fg">{p.label}</span>
+                <span className="mt-1 block text-xs text-muted">{p.summary}</span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-faint">{POLICY_SMALL_PRINT} Locked once you publish, like prices.</p>
+          <FieldError message={fe.cancellationPolicy} />
+        </fieldset>
       </section>
 
       <div className="flex justify-end">

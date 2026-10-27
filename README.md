@@ -60,10 +60,18 @@ Housefull models each seat as its own record and treats a purchase as a short **
    - **Share:** native share sheet on phones, copy-link on desktop; in production, event links unfurl in WhatsApp/Slack with the title, date and cover image (meta tags are rendered server-side).
 3. **Pay and receive tickets.** A countdown shows how long the hold has left. Payment goes through a mock card processor with realistic declines. Retries are idempotent, and a declined card keeps your hold so you can try another card. You receive one QR ticket per seat, plus a confirmation email with the QR codes attached.
    - **Emails along the way:** a ticket-style confirmation (event poster, a QR stub per seat, the bill, directions), a reminder the day before, an *It's showtime today* email a few hours before doors, a *New date & time* email if the organizer reschedules, a *Cancelled* email saying what was refunded to which card, and a refund receipt when you cancel your own order. Each automatic email goes out at most once per order, and every change is also an in-app notification.
-   - **Bill like BookMyShow:** tickets, promo discount, add-ons, a booking fee (`BOOKING_FEE_PERCENT`, default 5% of the ticket amount after discounts) and 18% GST on that fee. Organizer revenue excludes the fee and GST. If an attendee cancels, everything except the booking fee is refunded; if the organizer cancels the event, everything is refunded.
+   - **Bill like BookMyShow:** tickets, promo discount, add-ons, a booking fee (`BOOKING_FEE_PERCENT`, default 5% of the ticket amount after discounts) and 18% GST on that fee. Organizer revenue excludes the fee and GST. If an attendee cancels, they get back what the event's cancellation policy allows (never the booking fee); if the organizer cancels the event, everything is refunded.
    - **Food & merch add-ons:** organizers set up a menu per showtime (price, stock, per-order limit); buyers add items at checkout. Stock is taken atomically at payment, so limited items can't be oversold, and comes back on a declined card or refund.
    - **Promo codes:** apply a code at checkout for a percentage or flat discount (on ticket prices; codes work across all showtimes). Usage limits are enforced atomically, so a code with one use left can't be redeemed twice by racing buyers; a declined card or a refund gives the use back.
-4. **Manage and refund orders.** "My tickets" lists upcoming and past orders. You can cancel for a full refund up to 24 hours before the event, and the seats go straight back on sale.
+4. **Manage and refund orders.** "My tickets" lists upcoming and past orders. Cancelling puts the seats straight back on sale and refunds according to the event's **cancellation policy**, which the organizer picks when creating it, as on BookMyShow or District:
+
+   | Policy | Refund of the ticket price |
+   |---|---|
+   | Flexible | 100% up to 24 hours before |
+   | Standard (default) | 100% up to 7 days before, 75% up to 2 days, 50% up to 1 day |
+   | No cancellations | none |
+
+   There are never cancellations on the day of the show, and the booking fee and its GST are never refunded. If the organizer reschedules, people who booked before the change can cancel for the full ticket price up to a day before. The server works out the exact refund ([`refundPolicy.js`](server/src/services/refundPolicy.js)); "My tickets" shows it on the cancel button, along with when it will drop, and the policy is shown on the event page and at checkout.
    - **Ticket transfer:** send a ticket to another attendee by email. Your QR code stops working and they get a new one (plus a notification and an email). If the organizer cancels the event, the refund still goes to whoever paid.
 5. **Organizer tools:**
    - **Host verification:** before their events can go on sale, organizers verify their identity with their PAN (see [Test PANs](#test-pans)). Drafts work straight away; publishing is blocked server-side until the host is verified, and buyers see a *Verified host* badge on the event page.

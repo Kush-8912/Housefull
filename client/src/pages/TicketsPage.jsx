@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarPlus, CheckCircle2, ChevronDown, Gift, MapPin, Popcorn, Star, Ticket } from 'lucide-react';
+import { CalendarPlus, CheckCircle2, ChevronDown, Gift, MapPin, Popcorn, ShieldQuestion, Star, Ticket } from 'lucide-react';
 import { api } from '../lib/api';
 import { amount, byLabel, dateTime, dayMonth, plural } from '../lib/format';
 import { TicketCard } from '../components/TicketCard';
@@ -10,16 +10,34 @@ import { downloadIcs } from '../lib/calendar';
 import { Badge, EmptyState, ErrorState, FieldError, PageLoader } from '../components/States';
 import { Mask, Scramble } from '../components/Motion';
 import { confetti } from '../lib/confetti';
+import { policyOf } from '../lib/refundPolicy';
 
-function OrderCard({ order, cutoffHours, onCancelled, defaultOpen }) {
+// What the cancellation rules mean for this order right now, in a sentence.
+// `c` is the server's quote (see server/src/services/refundPolicy.js).
+function cancellationNote(c, event) {
+  if (c.allowed) {
+    const now = c.rescheduled
+      ? `The show moved, so you can cancel for a full refund of your tickets until ${dateTime(c.until)}.`
+      : `Cancel now and get ${c.percent}% of the ticket price back.`;
+    const later = c.rescheduled ? '' : c.next ? ` It drops to ${c.next.percent}% after ${dateTime(c.until)}.` : ` Last chance: ${dateTime(c.until)}.`;
+    return `${now}${later}`;
+  }
+  if (c.reason === 'NO_REFUNDS') return `${policyOf(event).label}: this event doesn’t allow cancellations.`;
+  if (c.reason === 'CLOSED') return `Cancellation closed ${dateTime(c.closesAt)}. There are no cancellations on the day of the show.`;
+  if (c.reason === 'CHECKED_IN') return 'These tickets have been used at the door, so they can’t be cancelled.';
+  if (c.reason === 'TRANSFERRED') return 'You sent a ticket from this order to someone, so it can’t be cancelled.';
+  return null;
+}
+
+function OrderCard({ order, onCancelled, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const event = order.event;
   const past = new Date(event.startsAt) < new Date();
-  const cancellable = order.status === 'paid' && event.status === 'published'
-    && new Date(event.startsAt).getTime() - cutoffHours * 3_600_000 > Date.now()
-    && !order.tickets.some((t) => t.checkedInAt || t.status === 'transferred');
+  const c = order.cancellation ?? { allowed: false };
+  const note = !past && order.status === 'paid' ? cancellationNote(c, event) : null;
+  const fee = (order.bookingFee ?? 0) + (order.gst ?? 0);
 
   const cancel = async () => {
     setBusy(true);
@@ -66,6 +84,12 @@ function OrderCard({ order, cutoffHours, onCancelled, defaultOpen }) {
         <div className="origin-top animate-[menu-drop_0.35s_cubic-bezier(0.2,0.7,0.2,1)] border-t border-line bg-ink px-4 py-6 sm:px-6">
           <TicketGrid tickets={order.tickets} event={event} onChanged={onCancelled} />
           <OrderExtras order={order} />
+          {note && (
+            <p className={`mt-6 flex items-start gap-2 border-l-2 px-3 py-2 text-sm ${c.allowed ? 'border-go bg-go/5 text-fg' : 'border-line-strong bg-ink-900 text-muted'}`}>
+              <ShieldQuestion className={`mt-0.5 h-4 w-4 shrink-0 ${c.allowed ? 'text-go' : 'text-faint'}`} aria-hidden />
+              <span>{note}</span>
+            </p>
+          )}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
             <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-faint">
               Order #{order._id.slice(-8).toUpperCase()}
@@ -80,14 +104,20 @@ function OrderCard({ order, cutoffHours, onCancelled, defaultOpen }) {
                 <Link to={`/events/${event._id}#reviews`} className="btn-ghost"><Star className="h-4 w-4 text-warn" aria-hidden /> Rate</Link>
               )}
               <Link to={`/events/${event._id}`} className="btn-ghost">View event</Link>
-              {cancellable && <button type="button" className="btn-secondary border-stop/50 text-stop hover:border-stop hover:bg-stop/10" onClick={() => setConfirming(true)}>Cancel &amp; refund</button>}
+              {c.allowed && (
+                <button type="button" className="btn-secondary border-stop/50 text-stop hover:border-stop hover:bg-stop/10" onClick={() => setConfirming(true)}>
+                  Cancel{c.refund > 0 ? ` · get ${amount(c.refund)} back` : ''}
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
       <ConfirmDialog open={confirming} title="Cancel this order?" confirmLabel="Cancel order" cancelLabel="Keep tickets" danger busy={busy} onConfirm={cancel} onClose={() => setConfirming(false)}>
-        All {plural(order.tickets.length, 'ticket')} will be voided and {amount(order.amount - (order.bookingFee ?? 0) - (order.gst ?? 0))} refunded to your card.
-        {order.bookingFee > 0 && ` The ${amount(order.bookingFee + order.gst)} booking fee (incl. GST) isn’t refundable.`} Your seats go back on sale immediately.
+        All {plural(order.tickets.length, 'ticket')} will be voided{c.refund > 0
+          ? <> and <strong className="text-fg">{amount(c.refund)}</strong> refunded to {order.payment?.last4 ? `card ••${order.payment.last4}` : 'your card'} ({c.percent}% of the ticket price)</>
+          : ''}.
+        {fee > 0 && ` The ${amount(fee)} booking fee (incl. GST) isn’t refundable.`} Your seats go back on sale immediately.
       </ConfirmDialog>
     </article>
   );
@@ -219,7 +249,7 @@ export function TicketsPage() {
     <div className="mx-auto max-w-4xl">
       <p className="eyebrow">Your wallet</p>
       <h1 className="display mt-3 text-6xl sm:text-7xl"><Scramble text="My tickets" /></h1>
-      <p className="mt-4 max-w-lg text-sm text-muted">Show the QR code at the door. You can cancel for a full refund up to {data.cancellationCutoffHours} hours before an event starts.</p>
+      <p className="mt-4 max-w-lg text-sm text-muted">Show the QR code at the door. Each order shows what you&apos;d get back if you cancelled, by that event&apos;s cancellation policy.</p>
       {data.received.length > 0 && <Received groups={data.received} onChange={load} />}
       {data.items.length === 0 && data.received.length === 0 ? (
         <div className="mt-10">
@@ -229,15 +259,15 @@ export function TicketsPage() {
         </div>
       ) : (
         <>
-          <Section title="Upcoming" orders={upcoming} cutoff={data.cancellationCutoffHours} onChange={load} openFirst />
-          <Section title="Past" orders={past} cutoff={data.cancellationCutoffHours} onChange={load} />
+          <Section title="Upcoming" orders={upcoming} onChange={load} openFirst />
+          <Section title="Past" orders={past} onChange={load} />
         </>
       )}
     </div>
   );
 }
 
-function Section({ title, orders, cutoff, onChange, openFirst }) {
+function Section({ title, orders, onChange, openFirst }) {
   if (!orders.length) return null;
   return (
     <section className="mt-12">
@@ -245,7 +275,7 @@ function Section({ title, orders, cutoff, onChange, openFirst }) {
       <div className="space-y-3">
         {orders.map((o, i) => (
           <div key={o._id} className="animate-rise" style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
-            <OrderCard order={o} cutoffHours={cutoff} onCancelled={onChange} defaultOpen={openFirst && i === 0} />
+            <OrderCard order={o} onCancelled={onChange} defaultOpen={openFirst && i === 0} />
           </div>
         ))}
       </div>

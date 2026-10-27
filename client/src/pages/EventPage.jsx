@@ -16,6 +16,7 @@ import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../componen
 import { CountUp, Words } from '../components/Motion';
 import { usePointer } from '../hooks/usePointer';
 import { VerifiedBadge } from '../components/VerifiedBadge';
+import { POLICY_SMALL_PRINT, policyOf } from '../lib/refundPolicy';
 
 const MAX_SEATS = 8; // fallback; each event says its own limit (maxPerOrder) and the server enforces it
 
@@ -245,6 +246,10 @@ export function EventPage() {
           {event.status === 'published' && (
             <ul className="space-y-1 font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
               <li>Up to {plural(maxSeats, 'ticket')} per order</li>
+              <li className="normal-case tracking-normal">
+                <span className="font-mono uppercase tracking-[0.1em] text-fg">Cancellation · {policyOf(event).label}</span>
+                <span className="mt-1 block font-sans text-xs text-muted">{policyOf(event).summary} {POLICY_SMALL_PRINT}</span>
+              </li>
               {event.onSale && event.salesCloseMinutes > 0 && <li>Sales close {dateTime(event.salesEndAt)}</li>}
             </ul>
           )}

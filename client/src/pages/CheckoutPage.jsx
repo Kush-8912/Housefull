@@ -8,6 +8,7 @@ import { BillLines } from '../components/BillLines';
 import { mmss, useCountdown } from '../hooks/useCountdown';
 import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../components/States';
 import { Scramble } from '../components/Motion';
+import { POLICY_SMALL_PRINT, policyOf } from '../lib/refundPolicy';
 
 const TEST_CARDS = [
   ['4242 4242 4242 4242', 'Succeeds'],
@@ -216,6 +217,9 @@ export function CheckoutPage() {
               <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">Total</span>
               <span key={data.total} className="display inline-block animate-pop text-4xl">{money(data.total)}</span>
             </div>
+            <p className="mt-4 border-t border-dashed border-paper-line pt-3 text-xs text-paper-ink/70">
+              <strong className="font-mono font-semibold uppercase tracking-[0.1em] text-paper-ink">Cancellation · {policyOf(data.event).label}.</strong> {policyOf(data.event).summary} {POLICY_SMALL_PRINT}
+            </p>
           </div>
         </aside>
       </div>
