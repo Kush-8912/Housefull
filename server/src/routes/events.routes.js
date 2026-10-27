@@ -13,6 +13,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { cancelEvent } from '../services/orderService.js';
 import { assertValidLayout, assertSalesWindow, publishEvent, availabilityFor, seatMapFor, addShowtime } from '../services/eventService.js';
+import { rescheduleEvent } from '../services/showChanges.js';
 import { listEvents, decorate, showsFor } from '../services/discoveryService.js';
 import { reviewsFor, saveReview, deleteReview } from '../services/reviewService.js';
 import { joinWaitlist, leaveWaitlist, waitlistStatus } from '../services/waitlistService.js';
@@ -257,6 +258,14 @@ eventsRouter.post('/:id/showtimes', requireAuth, requireRole('organizer'),
     const source = await loadOwnedEvent(req);
     const show = await addShowtime(source, req.body.startsAt);
     res.status(201).json({ event: show });
+  }));
+
+// Move a published show to a new time; ticket holders are told by email.
+eventsRouter.post('/:id/reschedule', requireAuth, requireRole('organizer'),
+  validate(z.object({ startsAt: z.coerce.date('Enter a valid date and time').refine((d) => d > new Date(), 'The new time must be in the future') })),
+  asyncHandler(async (req, res) => {
+    const event = await loadOwnedEvent(req);
+    res.json(await rescheduleEvent(event, req.body.startsAt));
   }));
 
 // ---- Interested --------------------------------------------------------------

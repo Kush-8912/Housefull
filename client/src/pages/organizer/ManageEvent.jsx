@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowLeft, CalendarPlus, Download, ExternalLink, Mail, Plus, Popcorn, Power, Shirt, Star, Pencil, Rocket, Search, Trash2, XOctagon } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CalendarPlus, Download, ExternalLink, Mail, Plus, Popcorn, Power, Shirt, Star, Pencil, Rocket, Search, Trash2, XOctagon } from 'lucide-react';
 import { api } from '../../lib/api';
 import { amount, dateTime, money, pct, plural, shortDate, time } from '../../lib/format';
 import { useEventChannel } from '../../hooks/useEventChannel';
@@ -16,6 +16,12 @@ import { Badge, EmptyState, ErrorState, FieldError, Notice, PageLoader, Spinner 
 import { CountUp } from '../../components/Motion';
 import { useAuth } from '../../context/AuthContext';
 
+// <input type="datetime-local"> wants local time without a zone: 2026-11-08T19:00.
+const toLocalInput = (iso) => {
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+
 export function ManageEvent() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,6 +30,8 @@ export function ManageEvent() {
   const [error, setError] = useState(null);
   const [newShow, setNewShow] = useState(null); // datetime-local string while the dialog is open
   const [showError, setShowError] = useState(null);
+  const [moveTo, setMoveTo] = useState(null); // datetime-local string while "Reschedule" is open
+  const [moveError, setMoveError] = useState(null);
   const [tab, setTab] = useState('overview');
   const [dialog, setDialog] = useState(null); // 'publish' | 'delete' | 'cancel'
   const verified = useAuth().user?.verifiedHost;
@@ -46,6 +54,22 @@ export function ManageEvent() {
 
   const isDraft = event.status === 'draft';
   const upcoming = new Date(event.startsAt) > new Date();
+
+  // Ticket holders get an email and an inbox notice with the old and new time.
+  const reschedule = async () => {
+    setBusy(true);
+    setMoveError(null);
+    try {
+      const { event: moved, notified } = await api(`/events/${id}/reschedule`, { method: 'POST', body: { startsAt: new Date(moveTo).toISOString() } });
+      toast.success(`Moved to ${dateTime(moved.startsAt)}`, { description: notified ? `${plural(notified, 'ticket holder')} emailed about the change.` : 'No tickets sold yet, so nobody needed telling.' });
+      setMoveTo(null);
+      load();
+    } catch (err) {
+      setMoveError(err.fieldErrors?.startsAt ?? err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const addShowtime = async () => {
     setBusy(true);
@@ -126,6 +150,9 @@ export function ManageEvent() {
               {event.status === 'published' && upcoming && (
                 <button type="button" className="btn-secondary" onClick={() => setDialog('remind')}><Mail className="h-4 w-4" aria-hidden /> Send reminders</button>
               )}
+              {event.status === 'published' && upcoming && (
+                <button type="button" className="btn-secondary" onClick={() => { setMoveTo(toLocalInput(event.startsAt)); setMoveError(null); }}><CalendarClock className="h-4 w-4" aria-hidden /> Reschedule</button>
+              )}
               <Link to={`/events/${id}`} className="btn-secondary"><ExternalLink className="h-4 w-4" aria-hidden /> Public page</Link>
               {event.status === 'published' && upcoming && (
                 <button type="button" className="btn-ghost text-stop hover:text-stop" onClick={() => setDialog('cancel')}><XOctagon className="h-4 w-4" aria-hidden /> Cancel event</button>
@@ -191,6 +218,13 @@ export function ManageEvent() {
           </div>
         </>
       )}
+
+      <ConfirmDialog open={moveTo !== null} title="Reschedule this show" confirmLabel="Move and notify" busy={busy} onConfirm={reschedule} onClose={() => setMoveTo(null)}>
+        <p>Seats, tickets and QR codes stay the same. Everyone holding a ticket gets an email and a notification with the old and new time, and reminders follow the new time.</p>
+        <label className="label mt-5" htmlFor="move-at">New date and time</label>
+        <input id="move-at" type="datetime-local" className={`input ${moveError ? 'input-error' : ''}`} value={moveTo ?? ''} onChange={(e) => { setMoveTo(e.target.value); setMoveError(null); }} />
+        <FieldError message={moveError} />
+      </ConfirmDialog>
 
       <ConfirmDialog open={newShow !== null} title="Add a showtime" confirmLabel="Add showtime" busy={busy} onConfirm={addShowtime} onClose={() => setNewShow(null)}>
         <p>Same layout, prices, description and add-on menu, with its own seats.{event.status === 'published' ? ' It goes on sale straight away.' : ' It starts as a draft.'} Promo codes work for every showtime.</p>
