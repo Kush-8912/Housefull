@@ -5,46 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { Avatar } from './Avatar';
 import { CityPicker } from './CityPicker';
+import { Logo } from './Logo';
 
 const navClass = ({ isActive }) =>
   `relative px-3 py-2 font-mono text-[12px] font-medium uppercase tracking-[0.12em] transition-colors ${
     isActive ? 'text-fg after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:bg-signal' : 'text-muted hover:text-fg'
   }`;
-
-// A seat as drawn on the seat map: rounded back, square base (5 units square).
-const seatPath = (x, y) => `M${x} ${y + 5}V${y + 2}a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2V${y + 5}z`;
-// In the order they fill: front row sides, back row, then yours in the middle.
-const LOGO_SEATS = [[6.5, 23], [20.5, 23], [10, 16], [17, 16], [13.5, 23]];
-
-/**
- * The mark is a theatre house with its seats. On load they fill up, front row
- * first, yours (cream) last, and then the light in the gable comes on:
- * housefull. Hovering the logo lifts the roof. `compact` hides the wordmark
- * on phones so the header fits on one line.
- */
-export function Logo({ className = '', compact = false }) {
-  return (
-    <span className={`flex items-center gap-2 ${className}`}>
-      <svg viewBox="0 0 32 32" className="h-7 w-7 overflow-visible" aria-hidden>
-        <path d="M3.5 14 16 4.5 28.5 14" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="stroke-signal transition-transform duration-300 group-hover:-translate-y-[2.5px]" />
-        {LOGO_SEATS.map(([x, y], i) => (
-          <path
-            key={i}
-            d={seatPath(x, y)}
-            strokeWidth="1"
-            strokeLinejoin="round"
-            className={`animate-seat-fill ${i === LOGO_SEATS.length - 1 ? 'fill-fg stroke-fg' : 'fill-signal stroke-signal'}`}
-            style={{ animationDelay: `${250 + i * 120}ms` }}
-          />
-        ))}
-        <circle cx="16" cy="10.4" r="1.6" className="origin-center animate-pop fill-fg [animation-delay:950ms] [transform-box:fill-box]" />
-      </svg>
-      <span className={`display text-[26px] leading-none tracking-[-0.02em] ${compact ? 'hidden sm:inline' : ''}`}>
-        House<span className="text-signal">full</span>
-      </span>
-    </span>
-  );
-}
 
 // Navigating between pages should start at the top, like a normal website.
 function useScrollReset() {
