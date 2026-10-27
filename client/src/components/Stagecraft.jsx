@@ -66,14 +66,17 @@ const INTRO_KEY = 'housefull:intro-seen';
 const seenIntro = () => {
   try { return sessionStorage.getItem(INTRO_KEY) === '1'; } catch { return true; }
 };
+// Only a visit that starts on the home page gets the show. Deep links (a QR
+// scanned at the door, an email's "open my tickets") go straight to work.
+const skipIntro = () => calm() || seenIntro() || window.location.pathname !== '/';
 
 /**
- * Curtain up: the first time someone opens the site in a session, the logo
- * fills with seats on a velvet curtain, then the curtains part on the page.
- * Clicking skips it.
+ * Curtain up: the first time someone opens the home page in a session, the
+ * logo fills with seats on a velvet curtain, then the curtains part on the
+ * page. Clicking skips it.
  */
 export function CurtainIntro() {
-  const [phase, setPhase] = useState(() => (calm() || seenIntro() ? 'gone' : 'closed'));
+  const [phase, setPhase] = useState(() => (skipIntro() ? 'gone' : 'closed'));
   const playing = phase !== 'gone';
 
   useEffect(() => {
