@@ -32,7 +32,7 @@ async function call(method, path, body) {
         authorization: `Basic ${Buffer.from(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
         'content-type': 'application/json',
       },
-      body: body ? JSON.stringify(body) : undefined,
+      ...(body && { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
