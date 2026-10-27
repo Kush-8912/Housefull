@@ -13,6 +13,35 @@ import { Spinner } from './States';
  * shows on sale (and faint dots for the rest), plus search, "detect my
  * location" and a list. `onChoose('')` means all cities.
  */
+/**
+ * Where each city's two-line label goes: to the right of its pin if that's
+ * free, otherwise left, below or above, so nearby cities (Mumbai and Pune,
+ * Delhi and Noida) don't print over each other or off the edge of the map. Busiest cities get first pick.
+ * Sizes are in map units and estimated from the text length.
+ */
+function placeLabels(pins, k) {
+  const taken = pins.map((p) => ({ x0: p.x - 22, x1: p.x + 22, y0: p.y - 22, y1: p.y + 22 })); // the pins themselves
+  // A spot is free if it overlaps nothing placed so far and stays inside the map's viewBox.
+  const outside = (b) => b.x0 < -40 || b.x1 > MAP_WIDTH + 40 || b.y0 < -20 || b.y1 > MAP_HEIGHT + 20;
+  const overlaps = (b) => outside(b) || taken.some((t) => b.x0 < t.x1 && b.x1 > t.x0 && b.y0 < t.y1 && b.y1 > t.y0);
+  const placed = new Map();
+  for (const p of [...pins].sort((a, b) => b.events - a.events)) {
+    const w = Math.max(p.name.length * 0.62 * 36 * k, plural(p.events, 'show').length * 0.62 * 22 * k);
+    const h = 64 * k; // name line + count line
+    const gap = 30 * k;
+    const spots = [
+      { anchor: 'start', x: p.x + gap, y: p.y - 4 * k, box: { x0: p.x + gap, x1: p.x + gap + w, y0: p.y - 34 * k, y1: p.y + 34 * k } },
+      { anchor: 'end', x: p.x - gap, y: p.y - 4 * k, box: { x0: p.x - gap - w, x1: p.x - gap, y0: p.y - 34 * k, y1: p.y + 34 * k } },
+      { anchor: 'middle', x: p.x, y: p.y + gap + 28 * k, box: { x0: p.x - w / 2, x1: p.x + w / 2, y0: p.y + gap, y1: p.y + gap + h } },
+      { anchor: 'middle', x: p.x, y: p.y - gap - 36 * k, box: { x0: p.x - w / 2, x1: p.x + w / 2, y0: p.y - gap - h, y1: p.y - gap } },
+    ];
+    const spot = spots.find((s) => !overlaps(s.box)) ?? spots[0];
+    taken.push(spot.box);
+    placed.set(p.name, spot);
+  }
+  return placed;
+}
+
 export function CityMapDialog({ current, onChoose, onClose }) {
   const [counts, setCounts] = useState(null);
   const [query, setQuery] = useState('');
@@ -84,6 +113,7 @@ export function CityMapDialog({ current, onChoose, onClose }) {
   };
 
   const pins = CITIES.map((c) => ({ ...c, ...project(c.lat, c.lon), events: counts?.[c.name] ?? 0 }));
+  const labels = placeLabels(pins.filter((p) => p.events), k);
   const unmapped = [...live].filter((n) => !findCity(n));
 
   const listItem = (name) => {
@@ -180,8 +210,8 @@ export function CityMapDialog({ current, onChoose, onClose }) {
                     <circle cx={p.x} cy={p.y} r={active ? 70 : 50} fill="url(#pin-glow)" className="transition-all" />
                     <circle cx={p.x} cy={p.y} r="12" fill="#ff5321" className="animate-pulse-dot" />
                     <circle cx={p.x} cy={p.y} r={active ? 22 : 18} fill="none" stroke={current === p.name ? '#f1ece3' : '#ff5321'} strokeWidth="3" />
-                    <text x={p.x + 30 * k} y={p.y - 4 * k} fill="#f1ece3" fontSize={(active ? 36 : 32) * k} fontWeight="700" fontFamily="Archivo Variable, sans-serif">{p.name}</text>
-                    <text x={p.x + 30 * k} y={p.y + 28 * k} fill="#a39d93" fontSize={22 * k} fontFamily="IBM Plex Mono">{plural(p.events, 'show')}</text>
+                    <text x={labels.get(p.name).x} y={labels.get(p.name).y} textAnchor={labels.get(p.name).anchor} fill="#f1ece3" fontSize={(active ? 36 : 32) * k} fontWeight="700" fontFamily="Archivo Variable, sans-serif">{p.name}</text>
+                    <text x={labels.get(p.name).x} y={labels.get(p.name).y + 32 * k} textAnchor={labels.get(p.name).anchor} fill="#a39d93" fontSize={22 * k} fontFamily="IBM Plex Mono">{plural(p.events, 'show')}</text>
                   </g>
                 );
               })}
