@@ -4,7 +4,8 @@ import { Check, Copy, Send } from 'lucide-react';
 import { time } from '../lib/format';
 
 // A paper ticket: seat on top, tear-off stub with the QR code underneath.
-export function TicketCard({ ticket, eventTitle, index = 0, onTransfer }) {
+// `printed` feeds it out of a slot (for the moment you buy it) instead of fading it in.
+export function TicketCard({ ticket, eventTitle, index = 0, onTransfer, printed = false }) {
   const [copied, setCopied] = useState(false);
   const used = Boolean(ticket.checkedInAt);
   const status = ticket.status === 'cancelled' ? 'cancelled' : ticket.status === 'transferred' ? 'sent' : used ? 'used' : 'valid';
@@ -18,8 +19,16 @@ export function TicketCard({ ticket, eventTitle, index = 0, onTransfer }) {
   };
 
   return (
-    <div className="relative animate-rise text-paper-ink" style={{ animationDelay: `${Math.min(index, 8) * 70}ms` }}>
-      <div className="notch-b rounded-t-[4px] bg-paper px-5 pb-5 pt-4">
+    <div
+      className={`group relative text-paper-ink transition-transform duration-300 hover:-translate-y-1 hover:-rotate-1 ${printed ? 'animate-print' : 'animate-rise'}`}
+      style={{ animationDelay: `${(printed ? 500 : 0) + Math.min(index, 8) * (printed ? 220 : 70)}ms` }}
+    >
+      <div className="notch-b relative rounded-t-[4px] bg-paper px-5 pb-5 pt-4">
+        {/* Holographic foil: a band of light slides across when you hover. */}
+        <span
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_35%,rgb(255_120_80/0.35)_45%,rgb(120_220_255/0.35)_52%,rgb(255_255_255/0.6)_56%,transparent_66%)] bg-[length:300%_100%] bg-[position:100%_0] mix-blend-overlay transition-[background-position] duration-1000 ease-out group-hover:bg-[position:0%_0]"
+          aria-hidden
+        />
         <div className="flex items-center justify-between font-mono text-[10px] font-semibold uppercase tracking-[0.16em]">
           <span>Admit one</span>
           <span className={status === 'valid' ? 'text-emerald-700' : 'text-paper-ink/50'}>{status === 'valid' ? 'Valid' : status}</span>
@@ -73,7 +82,7 @@ export function TicketCard({ ticket, eventTitle, index = 0, onTransfer }) {
 
       {status !== 'valid' && (
         <div className="pointer-events-none absolute inset-x-0 top-[38%] flex justify-center" aria-hidden>
-          <span className="-rotate-12 border-[3px] border-double border-signal px-3 py-1 text-center font-mono text-xs font-bold uppercase leading-tight tracking-[0.14em] text-signal mix-blend-multiply">
+          <span className="-rotate-12 animate-stamp border-[3px] border-double border-signal px-3 py-1 text-center font-mono text-xs font-bold uppercase leading-tight tracking-[0.14em] text-signal mix-blend-multiply" style={{ animationDelay: `${250 + Math.min(index, 8) * 70}ms` }}>
             {status === 'used' ? <>Checked in<br />{time(ticket.checkedInAt)}</> : status === 'sent' ? 'Transferred' : 'Void'}
           </span>
         </div>

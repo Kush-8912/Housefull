@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarPlus, CheckCircle2, ChevronDown, Gift, MapPin, Popcorn, Star, Ticket } from 'lucide-react';
 import { api } from '../lib/api';
@@ -8,6 +8,8 @@ import { TicketCard } from '../components/TicketCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { downloadIcs } from '../lib/calendar';
 import { Badge, EmptyState, ErrorState, FieldError, PageLoader } from '../components/States';
+import { Mask } from '../components/Motion';
+import { confetti } from '../lib/confetti';
 
 function OrderCard({ order, cutoffHours, onCancelled, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -61,7 +63,7 @@ function OrderCard({ order, cutoffHours, onCancelled, defaultOpen }) {
         </span>
       </button>
       {open && (
-        <div className="border-t border-line bg-ink px-4 py-6 sm:px-6">
+        <div className="origin-top animate-[menu-drop_0.35s_cubic-bezier(0.2,0.7,0.2,1)] border-t border-line bg-ink px-4 py-6 sm:px-6">
           <TicketGrid tickets={order.tickets} event={event} onChanged={onCancelled} />
           <OrderExtras order={order} />
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
@@ -241,7 +243,11 @@ function Section({ title, orders, cutoff, onChange, openFirst }) {
     <section className="mt-12">
       <h2 className="eyebrow mb-4 flex items-center gap-3">{title} <span className="text-faint">{orders.length}</span><span className="h-px flex-1 bg-line" /></h2>
       <div className="space-y-3">
-        {orders.map((o, i) => <OrderCard key={o._id} order={o} cutoffHours={cutoff} onCancelled={onChange} defaultOpen={openFirst && i === 0} />)}
+        {orders.map((o, i) => (
+          <div key={o._id} className="animate-rise" style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
+            <OrderCard order={o} cutoffHours={cutoff} onCancelled={onChange} defaultOpen={openFirst && i === 0} />
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -250,10 +256,17 @@ function Section({ title, orders, cutoff, onChange, openFirst }) {
 // Confirmation page right after checkout.
 export function OrderPage() {
   const { id } = useParams();
+  const { state } = useLocation();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const load = useCallback(() => { api(`/orders/${id}`).then(setData).catch(setError); }, [id]);
   useEffect(() => { load(); }, [load]);
+  // Fresh from checkout: throw some confetti once the tickets are on screen.
+  const loaded = Boolean(data);
+  useEffect(() => {
+    if (!loaded || !state?.celebrate) return undefined;
+    return confetti();
+  }, [loaded, state]);
 
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!data) return <PageLoader />;
@@ -262,7 +275,9 @@ export function OrderPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <p className="eyebrow flex items-center gap-2 text-go"><CheckCircle2 className="h-4 w-4" aria-hidden /> Order confirmed</p>
-      <h1 className="display mt-4 text-[clamp(3.5rem,11vw,8rem)]">You&apos;re <span className="text-signal">in.</span></h1>
+      <h1 className="display mt-4 text-[clamp(3.5rem,11vw,8rem)]">
+        <Mask delay={80}>You&apos;re</Mask> <Mask delay={220}><span className="animate-flicker text-signal [animation-delay:1.5s]">in.</span></Mask>
+      </h1>
       <p className="mt-5 text-lg text-fg">{order.event.title}</p>
       <p className="mt-1 text-sm text-muted">{dateTime(order.event.startsAt)} · {order.event.venue.name}, {order.event.venue.city}</p>
       <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.1em] text-faint">
@@ -270,7 +285,7 @@ export function OrderPage() {
       </p>
       <OrderExtras order={order} />
       <div className="mt-10 grid gap-5 min-[540px]:grid-cols-2 lg:grid-cols-3">
-        {tickets.toSorted(byLabel).map((t, i) => <TicketCard key={t._id} ticket={t} eventTitle={order.event.title} index={i} />)}
+        {tickets.toSorted(byLabel).map((t, i) => <TicketCard key={t._id} ticket={t} eventTitle={order.event.title} index={i} printed />)}
       </div>
       <div className="mt-10 flex flex-wrap gap-2 border-t border-line pt-6">
         <Link to="/tickets" className="btn-primary">All my tickets</Link>

@@ -76,7 +76,7 @@ export function CheckoutPage() {
     try {
       const res = await api(`/holds/${holdId}/checkout`, { method: 'POST', body, headers: { 'Idempotency-Key': keyRef.current } });
       toast.success('Payment successful — your tickets are ready!');
-      navigate(`/orders/${res.order._id}`, { replace: true });
+      navigate(`/orders/${res.order._id}`, { replace: true, state: { celebrate: true } });
     } catch (err) {
       if (err.code !== 'NETWORK' && err.status < 500) keyRef.current = newKey();
       if (err.code === 'HOLD_EXPIRED') { load(); return; }
@@ -107,12 +107,16 @@ export function CheckoutPage() {
 
       <div className="mt-10 grid gap-10 md:grid-cols-[1fr_21rem]">
         <form onSubmit={submit} noValidate className="order-2 md:order-1">
-          <div className={`flex items-center justify-between gap-4 border px-5 py-4 transition-colors ${urgent ? 'border-stop bg-stop/10' : 'border-line bg-ink-900'}`} role="timer" aria-live={urgent ? 'assertive' : 'off'}>
+          <div className={`flex items-center justify-between gap-4 border px-5 py-4 transition-colors ${urgent ? 'animate-shake border-stop bg-stop/10' : 'border-line bg-ink-900'}`} role="timer" aria-live={urgent ? 'assertive' : 'off'}>
             <div>
               <p className="eyebrow">Seats held for</p>
               <p className="mt-1 text-sm text-muted">{urgent ? 'Hurry. Your seats are released at zero.' : 'Nobody else can book them until then.'}</p>
             </div>
-            <p className={`font-mono text-4xl font-semibold tabular ${urgent ? 'text-stop' : 'text-fg'}`}>{mmss(left)}</p>
+            <p className={`font-mono text-4xl font-semibold tabular ${urgent ? 'animate-heartbeat text-stop' : 'text-fg'}`}>
+              <span className="sr-only">{mmss(left)}</span>
+              {/* Each digit drops in when it changes, like a departures board. */}
+              {[...mmss(left)].map((ch, i) => <span key={`${i}${ch}`} className="inline-block animate-tick" aria-hidden>{ch}</span>)}
+            </p>
           </div>
           {remaining !== null && (
             <div className="h-0.5 bg-line" aria-hidden>
@@ -186,7 +190,7 @@ export function CheckoutPage() {
             </Notice>
           )}
 
-          <button className="btn-primary mt-8 w-full py-4 text-base" disabled={busy}>
+          <button className={`btn-primary mt-8 w-full py-4 text-base ${busy ? '' : 'animate-glow'}`} disabled={busy}>
             {busy ? <Spinner className="h-4 w-4" /> : <Lock className="h-4 w-4" aria-hidden />}
             {busy ? 'Processing…' : free ? 'Confirm free tickets' : `Pay ${money(data.total)}`}
           </button>
@@ -194,13 +198,13 @@ export function CheckoutPage() {
         </form>
 
         <aside className="order-1 md:order-2">
-          <div className="notch-b bg-paper px-6 pb-6 pt-5 text-paper-ink md:sticky md:top-24">
+          <div className="notch-b animate-print bg-paper px-6 pb-6 pt-5 text-paper-ink md:sticky md:top-24">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-paper-ink/60">Order summary</p>
             <h2 className="display mt-3 text-3xl">{data.event.title}</h2>
             <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-paper-ink/70">{dateTime(data.event.startsAt)}<br />{data.event.venue.name}</p>
             <ul className="mt-5 border-t-2 border-dashed border-paper-line font-mono text-sm">
-              {data.seats.map((s) => (
-                <li key={s._id} className="flex justify-between border-b border-paper-line/70 py-2">
+              {data.seats.map((s, i) => (
+                <li key={s._id} className="flex animate-rise justify-between border-b border-paper-line/70 py-2" style={{ animationDelay: `${450 + i * 80}ms` }}>
                   <span><strong>{s.label}</strong> <span className="text-paper-ink/60">{s.tier}</span></span>
                   <span>{money(s.price)}</span>
                 </li>
@@ -209,7 +213,7 @@ export function CheckoutPage() {
             <BillLines bill={data} promoCode={data.promo && !data.promo.error ? data.promo.code : null} />
             <div className="mt-4 flex items-baseline justify-between">
               <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">Total</span>
-              <span className="display text-4xl">{money(data.total)}</span>
+              <span key={data.total} className="display inline-block animate-pop text-4xl">{money(data.total)}</span>
             </div>
           </div>
         </aside>
@@ -253,7 +257,7 @@ function PromoField({ holdId, quote, onChange, onRemoved, disabled }) {
 
   if (applied) {
     return (
-      <div className="mt-6 flex items-center justify-between gap-3 border border-go/40 bg-go/10 px-4 py-3">
+      <div className="mt-6 flex animate-pop items-center justify-between gap-3 border border-go/40 bg-go/10 px-4 py-3">
         <span className="flex items-center gap-2 text-sm text-fg">
           <Tag className="h-4 w-4 text-go" aria-hidden />
           <span className="font-mono font-semibold">{applied.code}</span>
