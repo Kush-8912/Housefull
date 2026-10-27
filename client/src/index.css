@@ -432,6 +432,7 @@
 @utility google-btn {
   @apply btn w-full gap-3 py-3 text-fg;
   border: 1px solid transparent;
+  border-radius: 10px;
   background:
     linear-gradient(var(--color-ink), var(--color-ink)) padding-box,
     linear-gradient(var(--color-line-strong), var(--color-line-strong)) border-box;
