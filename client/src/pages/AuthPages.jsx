@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
@@ -6,19 +6,25 @@ import { FieldError, Spinner } from '../components/States';
 import { PasswordChecklist } from '../components/PasswordChecklist';
 import { PasswordInput } from '../components/PasswordInput';
 import { passwordMeetsRules } from '../lib/passwordRules';
+import { Mask } from '../components/Motion';
 
 // Only allow redirects back into the app (no open redirect via ?next=).
 const safeNext = (next) => (next && next.startsWith('/') && !next.startsWith('//') ? next : null);
 
 function AuthShell({ eyebrow, title, subtitle, poster, children }) {
   return (
-    <div className="grid overflow-hidden border border-line lg:grid-cols-2">
+    <div className="grid animate-rise overflow-hidden border border-line lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between overflow-hidden bg-signal p-10 text-ink lg:flex">
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em]">{eyebrow}</p>
-        <p className="display relative z-10 text-[5.5rem]">{poster}</p>
-        {/* a few rows of seats, cropped, as texture */}
-        <div className="absolute -bottom-6 -right-10 grid rotate-[-8deg] grid-cols-9 gap-2 opacity-25" aria-hidden>
-          {Array.from({ length: 45 }, (_, i) => <span key={i} className="h-8 w-8 rounded-t-[10px] rounded-b-[3px] border-2 border-ink" />)}
+        <p className="display relative z-10 text-[5.5rem]">
+          {poster.map((line, i) => <Fragment key={i}>{i > 0 && <br />}<Mask delay={150 + i * 140}>{line}</Mask></Fragment>)}
+        </p>
+        {/* A few rows of seats, cropped, as texture; they fill in here and
+            there like a house selling out. */}
+        <div className="absolute -bottom-6 -right-10 grid rotate-[-8deg] animate-float grid-cols-9 gap-2 opacity-25" aria-hidden>
+          {Array.from({ length: 45 }, (_, i) => (
+            <span key={i} className="h-8 w-8 animate-twinkle rounded-t-[10px] rounded-b-[3px] border-2 border-ink" style={{ animationDelay: `${((i * 37) % 45) * 0.19}s` }} />
+          ))}
         </div>
       </div>
       <div className="bg-ink-900 px-6 py-10 sm:px-12 sm:py-14">
@@ -57,7 +63,7 @@ export function LoginPage() {
 
   const fe = error?.fieldErrors ?? {};
   return (
-    <AuthShell eyebrow="Box office · returning guests" poster={<>Your seat<br />is waiting.</>} title="Log in" subtitle="Welcome back to SeatLock.">
+    <AuthShell eyebrow="Box office · returning guests" poster={['Your seat', 'is waiting.']} title="Log in" subtitle="Welcome back to SeatLock.">
       <form onSubmit={submit} noValidate className="space-y-5">
         {error && !Object.keys(fe).length && <p className="border-l-2 border-stop bg-stop/10 px-3 py-2 text-sm text-fg" role="alert">{error.message}</p>}
         <div>
@@ -117,7 +123,7 @@ export function RegisterPage() {
   );
 
   return (
-    <AuthShell eyebrow="Box office · new account" poster={<>Front row<br />starts here.</>} title="Create account" subtitle="Book seats, or sell tickets to your own events.">
+    <AuthShell eyebrow="Box office · new account" poster={['Front row', 'starts here.']} title="Create account" subtitle="Book seats, or sell tickets to your own events.">
       <form onSubmit={submit} noValidate className="space-y-5">
         {error && !Object.keys(fe).length && <p className="border-l-2 border-stop bg-stop/10 px-3 py-2 text-sm text-fg" role="alert">{error.message}</p>}
         <fieldset>

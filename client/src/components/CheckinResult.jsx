@@ -15,15 +15,20 @@ export const CHECKIN_MESSAGES = {
 // The ring draws itself, then the tick (or cross) strokes in after it.
 function Mark({ ok }) {
   return (
-    <svg viewBox="0 0 52 52" className="h-20 w-20 animate-pop" aria-hidden>
-      <circle cx="26" cy="26" r="24" fill="none" stroke="currentColor" strokeWidth="3" pathLength="1" strokeDasharray="1" strokeDashoffset="1" className="animate-draw" />
-      <path
-        d={ok ? 'M15 27 l7.5 7.5 L37.5 19' : 'M18 18 L34 34 M34 18 L18 34'}
-        fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"
-        pathLength="1" strokeDasharray="1" strokeDashoffset="1"
-        className="animate-draw [animation-delay:350ms]"
-      />
-    </svg>
+    <span className="relative" aria-hidden>
+      {/* A shockwave off the mark, so the result registers from across the door. */}
+      <span className="absolute inset-0 animate-ripple rounded-full border-4 border-current" />
+      <span className="absolute inset-0 animate-ripple rounded-full border-2 border-current [animation-delay:180ms]" />
+      <svg viewBox="0 0 52 52" className="h-20 w-20 animate-pop">
+        <circle cx="26" cy="26" r="24" fill="none" stroke="currentColor" strokeWidth="3" pathLength="1" strokeDasharray="1" strokeDashoffset="1" className="animate-draw" />
+        <path
+          d={ok ? 'M15 27 l7.5 7.5 L37.5 19' : 'M18 18 L34 34 M34 18 L18 34'}
+          fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"
+          pathLength="1" strokeDasharray="1" strokeDashoffset="1"
+          className="animate-draw [animation-delay:350ms]"
+        />
+      </svg>
+    </span>
   );
 }
 

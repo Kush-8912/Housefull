@@ -13,6 +13,7 @@ import { EventReport } from './EventReport';
 import { CHECKIN_MESSAGES, CheckinResult } from '../../components/CheckinResult';
 import { SeatMap, previewSeats } from '../../components/SeatMap';
 import { Badge, EmptyState, ErrorState, FieldError, Notice, PageLoader, Spinner } from '../../components/States';
+import { CountUp } from '../../components/Motion';
 
 export function ManageEvent() {
   const { id } = useParams();
@@ -224,17 +225,17 @@ function Overview({ eventId }) {
   if (!stats) return <PageLoader />;
 
   const cards = [
-    ['Revenue', amount(stats.revenue), plural(stats.ordersPaid, 'order')],
-    ['Tickets sold', `${stats.sold} / ${stats.capacity}`, `${stats.held} on hold right now`],
-    ['Sell-through', pct(stats.sellThrough), `${stats.available} seats left`],
-    ['Checked in', `${stats.checkins.checkedIn} / ${stats.checkins.issued}`, stats.checkins.issued ? pct(stats.checkins.checkedIn / stats.checkins.issued) : '—'],
+    { label: 'Revenue', value: <CountUp value={stats.revenue} format={amount} />, sub: plural(stats.ordersPaid, 'order') },
+    { label: 'Tickets sold', value: <><CountUp value={stats.sold} /> / {stats.capacity}</>, sub: `${stats.held} on hold right now` },
+    { label: 'Sell-through', value: <CountUp value={Math.round(stats.sellThrough * 100)} format={(n) => `${n}%`} />, sub: `${stats.available} seats left` },
+    { label: 'Checked in', value: <><CountUp value={stats.checkins.checkedIn} /> / {stats.checkins.issued}</>, sub: stats.checkins.issued ? pct(stats.checkins.checkedIn / stats.checkins.issued) : '—' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 border-l border-t border-line lg:grid-cols-4">
-        {cards.map(([label, value, sub], i) => (
-          <div key={label} className="min-w-0 border-b border-r border-line bg-ink-900 p-4 sm:p-5">
+        {cards.map(({ label, value, sub }, i) => (
+          <div key={label} className="min-w-0 animate-rise border-b border-r border-line bg-ink-900 p-4 sm:p-5" style={{ animationDelay: `${i * 80}ms` }}>
             <p className="eyebrow">{label}</p>
             <p className={`display mt-3 break-words text-3xl tabular sm:text-5xl ${i === 0 ? 'text-signal' : ''}`}>{value}</p>
             <p className="mt-2 font-mono text-[11px] text-muted">{sub}</p>
@@ -267,7 +268,7 @@ function Overview({ eventId }) {
                   <td className="py-3">{t.tier} <span className="font-mono text-xs text-faint">· {money(t.price)}</span></td>
                   <td className="py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-1 w-20 bg-line sm:w-24"><div className="h-full bg-signal" style={{ width: pct(t.sold / t.capacity) }} /></div>
+                      <div className="h-1 w-20 bg-line sm:w-24"><div className="h-full origin-left animate-grow-x bg-signal" style={{ width: pct(t.sold / t.capacity) }} /></div>
                       <span className="font-mono text-xs tabular text-muted">{t.sold}/{t.capacity}</span>
                     </div>
                   </td>

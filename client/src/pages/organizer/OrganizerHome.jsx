@@ -34,13 +34,13 @@ export function OrganizerHome() {
         </div>
       ) : (
         <ul className="mt-10 border-t border-line">
-          {items.map((e) => {
+          {items.map((e, i) => {
             const a = e.availability;
             const soldPct = a ? (a.sold / a.total) * 100 : 0;
             const ended = new Date(e.startsAt) < now;
             const { day, month } = dayMonth(e.startsAt);
             return (
-              <li key={e.id} className="border-b border-line">
+              <li key={e.id} className="animate-rise border-b border-line" style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
                 <Link to={`/organizer/events/${e.id}`} className="group flex items-center gap-4 py-5 transition-colors hover:bg-ink-900 sm:gap-6 sm:px-3">
                   <div className={`w-14 shrink-0 text-center ${ended || e.status !== 'published' ? 'text-faint' : 'text-signal'}`}>
                     <span className="display block text-4xl leading-none">{day}</span>
@@ -62,7 +62,7 @@ export function OrganizerHome() {
                           <span className="tabular text-fg">{a.sold} / {a.total}</span>
                         </div>
                         <div className="mt-2 h-1 bg-line">
-                          <div className="h-full bg-signal" style={{ width: `${soldPct}%` }} />
+                          <div className="h-full origin-left animate-grow-x bg-signal" style={{ width: `${soldPct}%`, animationDelay: `${250 + Math.min(i, 8) * 60}ms` }} />
                         </div>
                       </>
                     ) : (
