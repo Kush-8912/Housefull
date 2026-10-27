@@ -168,4 +168,16 @@ describe('share previews', () => {
     expect(out).toContain('Tue, 17 Nov, 7:00 pm IST at Hall, Pune');
     expect(out).not.toContain('content="generic"');
   });
+
+  it('swaps the site-wide share tags for the event’s instead of doubling them', () => {
+    const html = '<html><head><title>Housefull</title>\n    <meta property="og:title" content="Housefull · Get in" />\n    <meta property="og:site_name" content="Housefull" />\n    <meta name="twitter:card" content="summary" />\n</head></html>';
+    const out = renderEventPage(html, {
+      _id: 'abc', title: 'Hamlet', startsAt: '2026-11-17T13:30:00Z', venue: { name: 'Hall', city: 'Pune' },
+    }, 'https://housefull.example');
+    expect(out.match(/property="og:title"/g)).toHaveLength(1);
+    expect(out.match(/property="og:site_name"/g)).toHaveLength(1);
+    expect(out.match(/name="twitter:card"/g)).toHaveLength(1);
+    expect(out).toContain('<meta property="og:title" content="Hamlet · Housefull" />');
+    expect(out).not.toContain('Get in');
+  });
 });

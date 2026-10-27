@@ -24,10 +24,12 @@ export function eventMeta(event, appUrl) {
   return { title, description, url, tags: [`<link rel="canonical" href="${esc(url)}" />`, ...tags].join('\n    ') };
 }
 
-// Replace the generic title/description and add the share tags.
+// Replace the generic title/description and share tags with the event's own.
+// The site-wide ones are dropped first so crawlers never see two og:titles.
 export function renderEventPage(template, event, appUrl) {
   const m = eventMeta(event, appUrl);
   return template
+    .replace(/\s*<meta (?:property="og:[\w:]+"|name="twitter:[\w:]+") content="[^"]*" \/>/g, '')
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(m.title)}</title>`)
     .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${esc(m.description)}" />`)
     .replace('</head>', `    ${m.tags}\n  </head>`);
