@@ -9,6 +9,7 @@ import { mmss, useCountdown } from '../hooks/useCountdown';
 import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../components/States';
 import { Scramble } from '../components/Motion';
 import { POLICY_SMALL_PRINT, policyOf } from '../lib/refundPolicy';
+import { useAuth } from '../context/AuthContext';
 
 const TEST_CARDS = [
   ['4242 4242 4242 4242', 'Succeeds'],
@@ -19,9 +20,23 @@ const TEST_CARDS = [
 
 const newKey = () => crypto.randomUUID();
 
+// Razorpay's checkout script, loaded the first time someone pays with it.
+let razorpayScript;
+const loadRazorpay = () => {
+  razorpayScript ??= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload = () => resolve(window.Razorpay);
+    s.onerror = () => { razorpayScript = null; reject(new Error('Razorpay couldn’t load. Check your connection and try again.')); };
+    document.head.append(s);
+  });
+  return razorpayScript;
+};
+
 export function CheckoutPage() {
   const { holdId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [card, setCard] = useState({ number: '', exp: '', cvc: '', name: '' });
@@ -66,24 +81,63 @@ export function CheckoutPage() {
   }
 
   const free = data.total === 0;
+  // With Razorpay keys on the server, paid orders go through Razorpay's own
+  // checkout window; otherwise through the demo card form below.
+  const viaRazorpay = !free && data.payments?.provider === 'razorpay';
+
+  const failed = (err) => {
+    if (err.code !== 'NETWORK' && err.status < 500) keyRef.current = newKey();
+    if (err.code === 'HOLD_EXPIRED') { load(); return; }
+    if (err.code?.startsWith('PROMO_')) load(); // refresh the price shown
+    setPayError(err);
+  };
+
+  // Razorpay: create its order for this bill, then open its window. When the
+  // buyer has paid, the server verifies the payment and issues the tickets.
+  const payWithRazorpay = async () => {
+    setBusy(true);
+    setPayError(null);
+    try {
+      const [Razorpay, order] = await Promise.all([loadRazorpay(), api(`/holds/${holdId}/razorpay-order`, { method: 'POST' })]);
+      const rzp = new Razorpay({
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Housefull',
+        description: `${data.event.title} · ${data.seats.map((s) => s.label).join(', ')}`,
+        image: `${window.location.origin}/icon-192.png`,
+        prefill: { name: user?.name, email: user?.email },
+        theme: { color: '#ff5321' },
+        handler: (r) => finish({ razorpay: { orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature } }),
+        modal: { ondismiss: () => setBusy(false) },
+      });
+      rzp.on('payment.failed', (r) => setPayError({ code: 'PAYMENT_FAILED', message: r.error?.description ?? 'Payment failed' }));
+      rzp.open();
+    } catch (err) {
+      setBusy(false);
+      failed(err);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
+    if (viaRazorpay) { payWithRazorpay(); return; }
+    const [mm, yy] = card.exp.split('/').map((s) => s.trim());
+    finish(free ? {} : {
+      card: { number: card.number, expMonth: Number(mm), expYear: 2000 + Number(yy), cvc: card.cvc, name: card.name },
+    });
+  };
+
+  const finish = async (body) => {
     setBusy(true);
     setPayError(null);
-    const [mm, yy] = card.exp.split('/').map((s) => s.trim());
-    const body = free ? {} : {
-      card: { number: card.number, expMonth: Number(mm), expYear: 2000 + Number(yy), cvc: card.cvc, name: card.name },
-    };
     try {
       const res = await api(`/holds/${holdId}/checkout`, { method: 'POST', body, headers: { 'Idempotency-Key': keyRef.current } });
       toast.success('Payment successful — your tickets are ready!');
       navigate(`/orders/${res.order._id}`, { replace: true, state: { celebrate: true } });
     } catch (err) {
-      if (err.code !== 'NETWORK' && err.status < 500) keyRef.current = newKey();
-      if (err.code === 'HOLD_EXPIRED') { load(); return; }
-      if (err.code?.startsWith('PROMO_')) load(); // refresh the price shown
-      setPayError(err);
+      failed(err);
     } finally {
       setBusy(false);
     }
@@ -131,6 +185,15 @@ export function CheckoutPage() {
           </h2>
           {free ? (
             <p className="mt-4 text-sm text-muted">This event is free. Confirm to get your tickets.</p>
+          ) : viaRazorpay ? (
+            <div className="mt-5 border border-line bg-ink-900 px-5 py-4 text-sm">
+              <p className="text-fg">You&apos;ll pay securely in <strong>Razorpay</strong>&apos;s window: card, UPI, netbanking or wallet. Your card or UPI details never reach Housefull.</p>
+              {data.payments.keyId?.startsWith('rzp_test_') && (
+                <p className="mt-3 font-mono text-xs text-muted">
+                  <span className="text-signal">Test mode</span> · no real money. Card <span className="text-fg">4386 2894 0766 0153</span>, any future expiry, CVV and OTP, or UPI <span className="text-fg">success@razorpay</span>.
+                </p>
+              )}
+            </div>
           ) : (
             <div className="mt-5 space-y-5">
               <div>
@@ -187,14 +250,14 @@ export function CheckoutPage() {
             <Notice tone="stop" className="mt-6">
               <span role="alert">
                 {payError.message}
-                {payError.code === 'PAYMENT_FAILED' && `${payError.message.endsWith('.') ? '' : '.'} Your seats are still held, so you can try another card.`}
+                {payError.code === 'PAYMENT_FAILED' && `${payError.message.endsWith('.') ? '' : '.'} Your seats are still held, so you can try again.`}
               </span>
             </Notice>
           )}
 
           <button className={`btn-primary mt-8 w-full py-4 text-base ${busy ? '' : 'animate-glow'}`} disabled={busy}>
             {busy ? <Spinner className="h-4 w-4" /> : <Lock className="h-4 w-4" aria-hidden />}
-            {busy ? 'Processing…' : free ? 'Confirm free tickets' : `Pay ${money(data.total)}`}
+            {busy ? 'Processing…' : free ? 'Confirm free tickets' : viaRazorpay ? `Pay ${money(data.total)} with Razorpay` : `Pay ${money(data.total)}`}
           </button>
           <button type="button" className="btn-ghost mt-2 w-full" onClick={release} disabled={busy}>Cancel and release seats</button>
         </form>
