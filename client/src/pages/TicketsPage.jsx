@@ -11,6 +11,7 @@ import { Badge, EmptyState, ErrorState, FieldError, PageLoader } from '../compon
 import { Mask, Scramble } from '../components/Motion';
 import { confetti } from '../lib/confetti';
 import { policyOf } from '../lib/refundPolicy';
+import { useTicketCheckins } from '../hooks/useTicketCheckins';
 
 // What the cancellation rules mean for this order right now, in a sentence.
 // `c` is the server's quote (see server/src/services/refundPolicy.js).
@@ -242,6 +243,7 @@ export function TicketsPage() {
     api('/orders').then((d) => { setData(d); setError(null); }).catch(setError);
   }, []);
   useEffect(() => { load(); }, [load]);
+  useTicketCheckins(load);
 
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!data) return <PageLoader label="Loading your tickets" />;
@@ -296,6 +298,7 @@ export function OrderPage() {
   const [error, setError] = useState(null);
   const load = useCallback(() => { api(`/orders/${id}`).then(setData).catch(setError); }, [id]);
   useEffect(() => { load(); }, [load]);
+  useTicketCheckins(load);
   // Fresh from checkout: throw some confetti once the tickets are on screen.
   const loaded = Boolean(data);
   useEffect(() => {
