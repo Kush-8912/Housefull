@@ -3,7 +3,7 @@ import { Order } from '../models/Order.js';
 import { Ticket } from '../models/Ticket.js';
 import { User } from '../models/User.js';
 import { sendMail } from '../services/mailer.js';
-import { eventReminderEmail, feedbackRequestEmail } from '../services/emails.js';
+import { eventReminderEmail, feedbackRequestEmail, showdayReminderEmail } from '../services/emails.js';
 import { reminderCopyFor } from '../services/reminderCopy.js';
 
 const MIN = 60_000;
@@ -11,7 +11,8 @@ const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 const EVERY = 10 * MIN;
 
-export const REMINDER_LEAD = DAY; // reminders go out once the show is within a day
+export const REMINDER_LEAD = DAY; // reminders go out once the show is within a day...
+export const SHOWDAY_LEAD = 3 * HOUR; // ...and "it's showtime today" a few hours before
 export const FEEDBACK_AFTER = 2 * HOUR; // feedback is asked for 2 hours after the show ends...
 export const FEEDBACK_UNTIL = 3 * DAY; // ...and not at all once it's this old
 
@@ -39,10 +40,35 @@ async function remindEvent(event) {
   return sent;
 }
 
+// The day-before reminder covers the window up to the last few hours; inside
+// those the showday email takes over, so nobody gets both at once.
 export async function sendDueReminders(now = new Date()) {
-  const events = await Event.find({ status: 'published', startsAt: { $gt: now, $lte: new Date(now.getTime() + REMINDER_LEAD) } }).select('+reminderCopy');
+  const events = await Event.find({
+    status: 'published',
+    startsAt: { $gt: new Date(now.getTime() + SHOWDAY_LEAD), $lte: new Date(now.getTime() + REMINDER_LEAD) },
+  }).select('+reminderCopy');
   let sent = 0;
   for (const event of events) sent += await remindEvent(event);
+  return sent;
+}
+
+// "It's showtime today", a few hours before. Skips orders placed inside that
+// window: their confirmation email went out minutes ago.
+export async function sendDueShowdayReminders(now = new Date()) {
+  const events = await Event.find({ status: 'published', startsAt: { $gt: now, $lte: new Date(now.getTime() + SHOWDAY_LEAD) } });
+  let sent = 0;
+  for (const event of events) {
+    const bookedBefore = new Date(event.startsAt.getTime() - SHOWDAY_LEAD);
+    const orders = await Order.find({ event: event._id, status: 'paid', showdayReminderSentAt: null, paidAt: { $lt: bookedBefore } }, '_id user').lean();
+    for (const o of orders) {
+      const tickets = await Ticket.find({ order: o._id, user: o.user, status: 'valid' }, 'label').lean();
+      if (!tickets.length || !(await claim(o._id, 'showdayReminderSentAt'))) continue;
+      const user = await User.findById(o.user, 'name email').lean();
+      if (!user) continue;
+      sendMail(showdayReminderEmail({ user, event, tickets }));
+      sent += 1;
+    }
+  }
   return sent;
 }
 
@@ -84,8 +110,10 @@ export function startEventEmailJob() {
     if (running) return; // a slow run (AI copy, many orders) mustn't overlap the next
     running = true;
     try {
-      const [reminders, feedback] = await Promise.all([sendDueReminders(), sendDueFeedbackRequests()]);
-      if (reminders || feedback) console.log(`[event emails] ${reminders} reminder(s), ${feedback} feedback request(s) sent`);
+      const [reminders, showday, feedback] = await Promise.all([sendDueReminders(), sendDueShowdayReminders(), sendDueFeedbackRequests()]);
+      if (reminders || showday || feedback) {
+        console.log(`[event emails] ${reminders} reminder(s), ${showday} showday reminder(s), ${feedback} feedback request(s) sent`);
+      }
     } catch (err) {
       console.error('[event emails] run failed:', err?.message ?? err);
     } finally {

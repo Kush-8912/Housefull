@@ -40,6 +40,7 @@ const orderSchema = new mongoose.Schema(
     refundedAmount: { type: Number, min: 0, default: 0 },
     // Each automatic email goes out at most once per order.
     reminderSentAt: { type: Date, default: null },
+    showdayReminderSentAt: { type: Date, default: null },
     feedbackRequestedAt: { type: Date, default: null },
     status: { type: String, enum: ORDER_STATUS, default: 'pending' },
     // Client-generated key; retries of the same checkout return the same order.
