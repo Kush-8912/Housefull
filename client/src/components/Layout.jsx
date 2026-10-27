@@ -49,14 +49,15 @@ export function Layout() {
             <span className="hidden h-5 w-px bg-line sm:block" aria-hidden />
             <CityPicker />
           </div>
+          {/* Full nav from md up; below that (phones and small tablets) the menu button, so the city picker never collides with it. */}
           <nav ref={nav} className="relative flex items-center gap-1" aria-label="Main">
             <span ref={navBar} className="slider -bottom-[13px] left-0 h-0.5 bg-signal [clip-path:inset(0_12px)]" aria-hidden />
-            <span className="hidden sm:contents"><NavLink to="/" end className={navClass}>Events</NavLink></span>
-            {user?.role === 'organizer' && <span className="hidden sm:contents"><NavLink to="/organizer" className={navClass}>Dashboard</NavLink></span>}
-            {user?.role === 'attendee' && <span className="hidden sm:contents"><NavLink to="/saved" className={navClass}>Saved</NavLink></span>}
-            {user?.role === 'attendee' && <span className="hidden sm:contents"><NavLink to="/tickets" className={navClass}>Tickets</NavLink></span>}
+            <span className="hidden md:contents"><NavLink to="/" end className={navClass}>Events</NavLink></span>
+            {user?.role === 'organizer' && <span className="hidden md:contents"><NavLink to="/organizer" className={navClass}>Dashboard</NavLink></span>}
+            {user?.role === 'attendee' && <span className="hidden md:contents"><NavLink to="/saved" className={navClass}>Saved</NavLink></span>}
+            {user?.role === 'attendee' && <span className="hidden md:contents"><NavLink to="/tickets" className={navClass}>Tickets</NavLink></span>}
             {user ? (
-              <div className="flex items-center gap-1 sm:ml-2 sm:border-l sm:border-line sm:pl-3">
+              <div className="flex items-center gap-1 md:ml-2 md:border-l md:border-line md:pl-3">
                 <NotificationBell />
                 <NavLink
                   to="/profile"
@@ -68,7 +69,7 @@ export function Layout() {
                 </NavLink>
                 <button
                   type="button"
-                  className="btn-ghost hidden px-2.5 sm:inline-flex"
+                  className="btn-ghost hidden px-2.5 md:inline-flex"
                   onClick={async () => { await logout(); navigate('/'); }}
                   aria-label="Log out"
                   title="Log out"
@@ -140,7 +141,7 @@ function MobileMenu({ user, onLogout }) {
   const item = ({ isActive }) => `flex items-center justify-between px-5 py-3.5 font-mono text-[13px] uppercase tracking-[0.12em] ${isActive ? 'bg-ink-850 text-fg' : 'text-muted'}`;
 
   return (
-    <div ref={panel} className="sm:hidden">
+    <div ref={panel} className="md:hidden">
       <button
         type="button"
         className="btn-ghost px-2.5"
