@@ -25,3 +25,5 @@ services:
         sync: false # your Render URL, for links in emails
       - key: SMTP_URL
         sync: false # optional: SMTP credentials to actually send email
+      - key: GOOGLE_CLIENT_ID
+        sync: false # optional: turns on "Continue with Google"

@@ -97,7 +97,7 @@ How it's built, so it stays fast and accessible:
 | Backend | Node.js, Express 5 | Native async error handling; simple REST surface |
 | Database | MongoDB with Mongoose | Atomic single-document conditional updates are exactly what seat claiming needs |
 | Validation | Zod (server) | One schema both validates and coerces input; field-level errors flow to the UI |
-| Auth | JWT in an httpOnly cookie, bcrypt | No token in JS-readable storage; same-origin deployment means no cross-site cookie issues |
+| Auth | JWT in an httpOnly cookie, bcrypt, Google Identity Services + google-auth-library | No token in JS-readable storage; same-origin deployment means no cross-site cookie issues; Google tokens are checked with Google server-side |
 | Security | Helmet (CSP), express-rate-limit, CORS | Sensible defaults plus brute-force protection on login/register |
 | Charts / QR | Recharts, qrcode.react, html5-qrcode | Dashboard chart, ticket QR rendering, camera scanning |
 | Motion | CSS keyframes and scroll-driven animations, View Transitions API, Canvas 2D | No animation library to ship; everything degrades gracefully and honours reduced motion |
@@ -257,6 +257,7 @@ All variables live in `server/.env` (template: [`server/.env.example`](server/.e
 | `SMTP_URL` | no | — | e.g. `smtps://user:pass@smtp.example.com:465`. Without it, development writes each email to `server/.mail-outbox/*.eml` (open with any mail app) instead of sending |
 | `BOOKING_FEE_PERCENT` | no | `5` | Booking fee on tickets (after discounts); 18% GST is added on the fee. `0` turns it off |
 | `MAIL_FROM` | no | `Housefull <tickets@housefull.dev>` | Sender address for emails |
+| `GOOGLE_CLIENT_ID` | no | — | Turns on **Continue with Google** (see [Google sign-in](#google-sign-in)). Without it the button is hidden |
 
 Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. `.env` is git-ignored; no secrets are committed.
 
@@ -269,6 +270,14 @@ The app deploys as **one Render web service** (API + client) backed by **MongoDB
 3. When prompted, set `MONGODB_URI` to your Atlas string.
 4. After the first deploy, seed the demo data from your machine: `MONGODB_URI="<atlas uri>" npm run seed`.
 5. Put the live URL at the top of this README.
+
+### Google sign-in
+
+1. In [Google Cloud console](https://console.cloud.google.com/apis/credentials), create an **OAuth client ID** of type *Web application* (set up the OAuth consent screen first if asked).
+2. Under **Authorized JavaScript origins** add `http://localhost:5173`, `https://localhost:5173` and your Render URL. Google doesn't accept bare IP addresses, so the button won't work on a phone opened via a LAN IP.
+3. Set `GOOGLE_CLIENT_ID` in `server/.env` (and in Render). There's no client secret: our own button opens Google's sign-in popup (Google Identity Services), the browser gets a short-lived access token, and the server asks Google (tokeninfo) whether it's live, was issued to *this* client ID (so a token given to another app can't be replayed) and belongs to a verified email before signing anyone in.
+
+A first Google sign-in creates an account (with the role picked on the sign-up page). If a password account already uses that verified email, Google is linked to it.
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the server test suite, then the client lint and build on every push.
 
