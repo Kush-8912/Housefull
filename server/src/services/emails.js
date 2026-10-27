@@ -237,18 +237,23 @@ ${button(url('/tickets'), 'Open my tickets')}
 }
 
 // Sent a few hours after the show to people who were scanned in.
-export function feedbackRequestEmail({ user, event }) {
-  const link = url(`/events/${event._id}#reviews`);
+export function feedbackRequestEmail({ user, event, form = null }) {
+  const reviewLink = url(`/events/${event._id}#reviews`);
+  // With an organizer's form, the stars and button lead to it instead of the review box.
+  const link = form ? url(`/events/${event._id}/feedback`) : reviewLink;
   const stars = [1, 2, 3, 4, 5].map((n) => `<a href="${esc(link)}" style="color:#f2b13c;text-decoration:none;font-size:30px" aria-label="${n} star${n > 1 ? 's' : ''}">&#9733;</a>`).join(' ');
+  const ask = form
+    ? `<p style="margin:0 0 8px">The organizer made a short feedback form (${form.questions} question${form.questions === 1 ? '' : 's'}, about two minutes). Once you’ve answered, you’ll see how everyone else rated it too.</p>`
+    : '<p style="margin:0 0 8px">Rate the night and tell the organizer what worked and what didn’t. You can also leave a note only they will see.</p>';
   const html = layout({
     preheader: `Tell ${event.title} how it went. It takes a minute.`,
     heading: 'How was it?',
     hero: event.coverImageUrl,
     body: `<p style="margin:0 0 12px">Hi ${esc(user.name.split(' ')[0])}, thanks for coming to <strong>${esc(event.title)}</strong>.</p>
-<p style="margin:0 0 8px">Rate the night and tell the organizer what worked and what didn't. You can also leave a note only they will see.</p>
+${ask}
 <p style="margin:12px 0 4px">${stars}</p>
-${button(link, 'Leave feedback')}`,
+${button(link, form ? 'Answer the feedback form' : 'Leave feedback')}`,
   });
-  const text = `Thanks for coming to ${event.title}. How was it? Leave a rating and feedback: ${link}`;
+  const text = `Thanks for coming to ${event.title}. How was it? ${form ? 'Answer the feedback form' : 'Leave a rating and feedback'}: ${link}`;
   return { to: user.email, subject: `How was ${event.title}?`, html, text };
 }

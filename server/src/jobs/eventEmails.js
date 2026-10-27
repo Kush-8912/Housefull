@@ -1,10 +1,11 @@
-import { Event } from '../models/Event.js';
+import { Event, seriesKey } from '../models/Event.js';
 import { Order } from '../models/Order.js';
 import { Ticket } from '../models/Ticket.js';
 import { User } from '../models/User.js';
 import { sendMail } from '../services/mailer.js';
 import { eventReminderEmail, feedbackRequestEmail, showdayReminderEmail } from '../services/emails.js';
 import { reminderCopyFor } from '../services/reminderCopy.js';
+import { Survey } from '../models/Survey.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -92,12 +93,14 @@ export async function sendDueFeedbackRequests(now = new Date()) {
     const ended = event.startsAt.getTime() + event.durationMinutes * MIN;
     if (now.getTime() - ended < FEEDBACK_AFTER || now.getTime() - ended > FEEDBACK_UNTIL) continue;
     const orders = await Order.find({ event: event._id, status: 'paid', feedbackRequestedAt: null }, '_id user').lean();
+    const survey = orders.length ? await Survey.findOne({ series: seriesKey(event) }, 'questions').lean() : null;
+    const form = survey ? { questions: survey.questions.length } : null;
     for (const o of orders) {
       const came = await Ticket.exists({ order: o._id, user: o.user, checkedInAt: { $ne: null } });
       if (!came || !(await claim(o._id, 'feedbackRequestedAt'))) continue;
       const user = await User.findById(o.user, 'name email').lean();
       if (!user) continue;
-      sendMail(feedbackRequestEmail({ user, event }));
+      sendMail(feedbackRequestEmail({ user, event, form }));
       sent += 1;
     }
   }

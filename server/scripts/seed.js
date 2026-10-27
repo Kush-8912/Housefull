@@ -15,6 +15,9 @@ import { Notification } from '../src/models/Notification.js';
 import { Addon } from '../src/models/Addon.js';
 import { Review } from '../src/models/Review.js';
 import { Interest } from '../src/models/Interest.js';
+import { Survey } from '../src/models/Survey.js';
+import { SurveyResponse } from '../src/models/SurveyResponse.js';
+import { templateQuestions } from '../src/services/surveyAi.js';
 import { publishEvent, addShowtime } from '../src/services/eventService.js';
 import { checkInTicket } from '../src/services/checkinService.js';
 import { qrPayloadFor } from '../src/services/ticketSigner.js';
@@ -104,7 +107,7 @@ async function main() {
   await mongoose.connection.syncIndexes();
 
   if (process.argv.includes('--reset')) {
-    await Promise.all([User, Event, Seat, Hold, Order, Ticket, PromoCode, WaitlistEntry, Notification, Addon, Review, Interest].map((M) => M.deleteMany({})));
+    await Promise.all([User, Event, Seat, Hold, Order, Ticket, PromoCode, WaitlistEntry, Notification, Addon, Review, Interest, Survey, SurveyResponse].map((M) => M.deleteMany({})));
     console.log('Cleared existing data');
   } else if (await User.estimatedDocumentCount()) {
     console.log('Database already has users; run with --reset to wipe and reseed.');
@@ -112,13 +115,15 @@ async function main() {
   }
 
   const passwordHash = await User.hashPassword(DEMO_PASSWORD);
-  const [organizer, , friend] = await User.create([
+  const [organizer, , friend, guest] = await User.create([
     // Already a verified host (PAN ABCPO1234K in the demo KYC), so the seeded events can be published.
     { name: 'Riya Organiser', email: 'organizer@housefull.dev', role: 'organizer', passwordHash,
       hostVerification: { legalName: 'Riya Organiser', holderType: 'person', panLast4: '234K', verifiedAt: new Date() } },
     { name: 'Aarav Attendee', email: 'attendee@housefull.dev', role: 'attendee', passwordHash },
     // A second attendee: someone to transfer tickets to, and the buyer who sold out the workshop.
     { name: 'Meera Friend', email: 'friend@housefull.dev', role: 'attendee', passwordHash },
+    // A third person at the past brunch, so its feedback form has enough answers to share.
+    { name: 'Kabir Guest', email: 'guest@housefull.dev', role: 'attendee', passwordHash },
   ]);
 
   const published = {};
@@ -177,7 +182,7 @@ async function main() {
     rows: rows([['ABC', 8, 'Table']]),
   }));
   const brunchSeats = await Seat.find({ event: brunch._id }).sort({ row: 1, number: 1 });
-  for (const [i, buyer] of [friend, attendee].entries()) {
+  for (const [i, buyer] of [friend, attendee, guest].entries()) {
     const h = await createHold({ user: buyer, event: brunch, seatIds: brunchSeats.slice(i * 2, i * 2 + 2).map((x) => x._id) });
     const { tickets } = await checkout({ user: buyer, holdId: h._id, idempotencyKey: `seed-brunch-${i}`, card });
     for (const t of tickets) await checkInTicket({ event: brunch, qr: qrPayloadFor(t._id), staff: organizer });
@@ -186,6 +191,16 @@ async function main() {
   await Event.updateOne({ _id: brunch._id }, { startsAt: threeDaysAgo });
   await Order.updateMany({ event: brunch._id }, { paidAt: days(-6, 18) });
   await Review.create({ series: brunch._id, event: brunch._id, user: friend._id, rating: 5, text: 'Lovely set and the terrace was perfect. Book a table near the front.' });
+
+  // The organizer's feedback form for the brunch, answered by Meera and Kabir.
+  // attendee@ can answer it too, which makes three and unlocks "how everyone answered".
+  const survey = await Survey.create({ series: brunch._id, organizer: organizer._id, title: 'How was the brunch?', intro: 'Two minutes, and it shapes the next one.', questions: templateQuestions(brunch) });
+  const q = survey.questions.map((x) => x._id);
+  const answers = (values) => values.map((value, i) => ({ question: q[i], value })).filter((a) => a.value != null);
+  await SurveyResponse.create([
+    { survey: survey._id, event: brunch._id, user: friend._id, answers: answers([5, 10, ['The music and the band', 'The venue'], 5, 'Definitely', 'Lovely set and the terrace was perfect. Maybe a longer second half?']) },
+    { survey: survey._id, event: brunch._id, user: guest._id, answers: answers([4, 7, ['The crowd and atmosphere', 'The music and the band'], 3, 'Maybe', 'Food took a long time to reach our table and the sound was quiet at the back.']) },
+  ]);
 
   // Meera is interested in a couple of upcoming events.
   for (const title of ['Midnight Echoes — Acoustic Tour', 'Frontend Forward 2026']) {
@@ -205,6 +220,7 @@ async function main() {
   console.log('Hamlet has 3 showtimes. Sunday Jazz Brunch already happened: log in as attendee@ to review it.');
   console.log(`Log in as organizer@, attendee@ or friend@housefull.dev with password "${DEMO_PASSWORD}".`);
   console.log('Cancellation policies: Stand-up is Flexible, Frontend Forward has no cancellations, the rest are Standard.');
+  console.log('Sunday Jazz Brunch has a feedback form with 2 answers: answer it as attendee@, and see the results and insights as organizer@.');
   console.log('organizer@ is already a verified host. New organizers verify on their profile (demo PAN ABCPO1234K for "Riya Organiser").');
   await backgroundIdle();
 }
