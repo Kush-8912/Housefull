@@ -18,6 +18,13 @@ const schema = z.object({
   // server/.mail-outbox/*.eml instead of sending it.
   SMTP_URL: z.string().optional(),
   MAIL_FROM: z.string().default('Housefull <tickets@housefull.dev>'),
+  // Optional: send through the Gmail API over HTTPS instead of SMTP (hosts
+  // like Render's free plan block SMTP ports). A refresh token with the
+  // gmail.send scope for the MAIL_FROM account; the OAuth client defaults to
+  // GOOGLE_CLIENT_ID.
+  GMAIL_CLIENT_ID: z.string().optional(),
+  GMAIL_CLIENT_SECRET: z.string().optional(),
+  GMAIL_REFRESH_TOKEN: z.string().optional(),
   // Public URL of the app, used for links inside emails.
   APP_URL: z.string().optional(),
   // Optional: Razorpay API keys (test mode: rzp_test_...). With both set,
