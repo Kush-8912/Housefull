@@ -125,6 +125,40 @@ ${button(url('/tickets'), 'Open my tickets')}${secondaryButton(mapsUrl(event.ven
   return { to: user.email, subject: `Today at ${clock(event.startsAt)}: ${event.title}`, html, text };
 }
 
+// Sent once, when an account is created (password sign-up or a first Google
+// sign-in). Attendees get how booking works; organizers get how to start selling.
+export function welcomeEmail({ user }) {
+  const first = user.name.split(' ')[0];
+  const organizer = user.role === 'organizer';
+  const steps = organizer
+    ? [
+      ['Verify your identity', 'A quick PAN check on your profile. Tickets only go on sale from verified hosts.'],
+      ['Build your seat map', 'Tiers, prices and a row-by-row layout, with a live preview as you go.'],
+      ['Publish & scan', 'Tickets go on sale instantly. At the door, scan QR codes from your phone.'],
+    ]
+    : [
+      ['Pick', 'Choose your exact seats on a live seat map, not just a section.'],
+      ['Hold', 'Your seats are locked to you while you pay. Nobody else can grab them.'],
+      ['Walk in', 'Show the QR ticket at the door. It’s in your email and under My tickets.'],
+    ];
+  const rows = steps.map(([title, text], i) => `<tr>
+<td width="44" valign="top" style="padding:10px 0"><div style="width:32px;height:32px;line-height:32px;text-align:center;background:#ff5321;color:#0c0b0a;font-weight:800;border-radius:6px">${i + 1}</div></td>
+<td valign="top" style="padding:10px 0"><div style="font-weight:700;font-size:16px">${esc(title)}</div><div style="color:#6f6a62;font-size:14px;margin-top:2px">${esc(text)}</div></td>
+</tr>`).join('');
+  const html = layout({
+    preheader: organizer ? 'Three steps to your first sold-out show.' : 'Pick the seat, not the section. Here’s how it works.',
+    heading: organizer ? `Welcome, ${first}. Let’s fill your house.` : `Welcome to Housefull, ${first}`,
+    body: `<p style="margin:0 0 8px">${organizer
+      ? 'Your organizer account is ready. Here’s how to get your first event on sale:'
+      : 'Your account is ready. Booking on Housefull takes three steps:'}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0">${rows}</table>
+${organizer ? button(url('/profile#verify'), 'Verify & create your first event') : button(url('/'), 'Find a show')}
+<p style="margin:18px 0 0;font-size:13px;color:#6f6a62">You signed up with ${esc(user.email)}. If that wasn’t you, you can ignore this email.</p>`,
+  });
+  const text = `Welcome to Housefull, ${first}!\n\n${steps.map(([t, x], i) => `${i + 1}. ${t}: ${x}`).join('\n')}\n\n${organizer ? `Get started: ${url('/profile#verify')}` : `Find a show: ${url('/')}`}`;
+  return { to: user.email, subject: organizer ? 'Welcome to Housefull: start selling tickets' : `Welcome to Housefull, ${first}`, html, text };
+}
+
 // The organizer moved the show. Tickets stay valid; the old time is struck through.
 export function eventRescheduledEmail({ user, event, previousStartsAt }) {
   const html = layout({
