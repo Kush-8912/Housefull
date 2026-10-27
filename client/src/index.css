@@ -164,6 +164,15 @@
   0% { background-position: 100% 0; }
   55%, 100% { background-position: 0% 0; }
 }
+/* An animatable angle, for borders that spin. */
+@property --spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes spin-border {
+  to { --spin: 360deg; }
+}
 @keyframes menu-drop {
   from { opacity: 0; transform: scaleY(0.7) translateY(-6px); }
 }
@@ -416,6 +425,22 @@
   background:
     linear-gradient(to bottom, rgb(0 0 0 / 0.55), transparent 18%, transparent 75%, rgb(0 0 0 / 0.6)),
     repeating-linear-gradient(90deg, #3b0d05 0, #7c1f0b 22px, #b8340f 34px, #7c1f0b 46px, #3b0d05 68px);
+}
+
+/* "Continue with Google": dark like the inputs; on hover the border lights up
+   in Google's four colours, chasing round the button. */
+@utility google-btn {
+  @apply btn w-full gap-3 py-3 text-fg;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-ink), var(--color-ink)) padding-box,
+    linear-gradient(var(--color-line-strong), var(--color-line-strong)) border-box;
+  &:hover {
+    background:
+      linear-gradient(var(--color-ink-850), var(--color-ink-850)) padding-box,
+      conic-gradient(from var(--spin), #4285f4, #34a853, #fbbc05, #ea4335, #4285f4) border-box;
+    animation: spin-border 2.4s linear infinite;
+  }
 }
 
 /* The pointer's trailing ring; it swells and inverts over anything clickable. */

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { FieldError, Spinner } from '../components/States';
 import { PasswordChecklist } from '../components/PasswordChecklist';
 import { PasswordInput } from '../components/PasswordInput';
+import { GoogleButton } from '../components/GoogleButton';
 import { passwordMeetsRules } from '../lib/passwordRules';
 import { Mask } from '../components/Motion';
 
@@ -36,6 +37,22 @@ function AuthShell({ eyebrow, title, subtitle, poster, children }) {
   );
 }
 
+// After Google signs someone in (or up): greet them and go where they were headed.
+function useGoogleSignIn(role) {
+  const { loginWithGoogle } = useAuth();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  return async (accessToken) => {
+    try {
+      const { user: u, created } = await loginWithGoogle(accessToken, role);
+      toast.success(created ? `Welcome to Housefull, ${u.name.split(' ')[0]}` : `Welcome back, ${u.name.split(' ')[0]}`);
+      navigate(safeNext(params.get('next')) ?? (u.role === 'organizer' ? '/organizer' : '/'), { replace: true });
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+}
+
 export function LoginPage() {
   const { user, login } = useAuth();
   const [params] = useSearchParams();
@@ -43,6 +60,7 @@ export function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const google = useGoogleSignIn();
 
   if (user) return <Navigate to={safeNext(params.get('next')) ?? (user.role === 'organizer' ? '/organizer' : '/')} replace />;
 
@@ -78,6 +96,7 @@ export function LoginPage() {
         </div>
         <button className="btn-primary w-full py-3" disabled={busy}>{busy && <Spinner className="h-4 w-4" />} Log in</button>
       </form>
+      <GoogleButton onToken={google} />
       <p className="mt-8 text-sm text-muted">
         New here? <Link className="font-semibold text-fg underline decoration-signal underline-offset-4 hover:text-signal" to={`/register${params.get('next') ? `?next=${encodeURIComponent(params.get('next'))}` : ''}`}>Create an account</Link>
       </p>
@@ -93,6 +112,8 @@ export function RegisterPage() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
+  // New Google accounts get whichever role is picked above the form.
+  const google = useGoogleSignIn(form.role);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -151,6 +172,7 @@ export function RegisterPage() {
         </div>
         <button className="btn-primary w-full py-3" disabled={busy}>{busy && <Spinner className="h-4 w-4" />} Create account</button>
       </form>
+      <GoogleButton onToken={google} />
       <p className="mt-8 text-sm text-muted">
         Already have an account? <Link className="font-semibold text-fg underline decoration-signal underline-offset-4 hover:text-signal" to="/login">Log in</Link>
       </p>

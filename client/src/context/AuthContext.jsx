@@ -28,6 +28,14 @@ export function AuthProvider({ children }) {
     return u;
   }, []);
 
+  // `accessToken` comes from Google's sign-in popup; `role` only matters when
+  // this creates the account.
+  const loginWithGoogle = useCallback(async (accessToken, role) => {
+    const { user: u, created } = await api('/auth/google', { method: 'POST', body: { accessToken, role } });
+    setUser(u);
+    return { user: u, created };
+  }, []);
+
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' }).catch(() => {});
     setUser(null);
@@ -42,7 +50,10 @@ export function AuthProvider({ children }) {
   // After the profile page saves account changes.
   const updateUser = useCallback((u) => setUser(u), []);
 
-  const value = useMemo(() => ({ user, loading, login, register, logout, updateUser }), [user, loading, login, register, logout, updateUser]);
+  const value = useMemo(
+    () => ({ user, loading, login, register, loginWithGoogle, logout, updateUser }),
+    [user, loading, login, register, loginWithGoogle, logout, updateUser],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
