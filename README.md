@@ -65,6 +65,7 @@ Housefull models each seat as its own record and treats a purchase as a short **
 4. **Manage and refund orders.** "My tickets" lists upcoming and past orders. You can cancel for a full refund up to 24 hours before the event, and the seats go straight back on sale.
    - **Ticket transfer:** send a ticket to another attendee by email. Your QR code stops working and they get a new one (plus a notification and an email). If the organizer cancels the event, the refund still goes to whoever paid.
 5. **Organizer tools:**
+   - **Host verification:** before their events can go on sale, organizers verify their identity with their PAN (see [Test PANs](#test-pans)). Drafts work straight away; publishing is blocked server-side until the host is verified, and buyers see a *Verified host* badge on the event page.
    - **Event builder:** tiers, prices, and a row-by-row seating layout with a live preview. Draft, then publish, which locks the layout.
    - **Live dashboard:** revenue, sell-through, per-tier sales, daily sales chart and check-in rate.
    - **Door check-in:** camera QR scanner or a pasted code, with clear admit / do-not-admit results (already used, wrong event, refunded, forged).
@@ -295,6 +296,21 @@ The payment processor is a **mock**: no real money moves and no payment provider
 | `4000 0000 0000 0119` | Gateway error |
 
 Use any future expiry and any 3-digit CVC. Free events skip payment entirely.
+
+## Test PANs
+
+Host verification uses a **mock KYC provider** ([`kycService.js`](server/src/services/kycService.js)) with the same contract as a real one (PAN and name in; verified, not found, name mismatch or unavailable out), so going live only swaps that file for a licensed KYC provider or DigiLocker. No real PAN is checked, and only the last 4 characters are stored.
+
+It applies the checks that work offline: the PAN format, a valid holder type (4th letter: `P` person, `C` company, `F` firm, ...), and that the 5th letter is the first letter of the surname (for a person) or of the name (otherwise).
+
+| PAN | Name | Result |
+|---|---|---|
+| `ABCPO1234K` | Riya Organiser | Verified (the seeded organizer already is) |
+| `ABCPK1234K` | Riya Organiser | Name mismatch |
+| `AAAPZ0000Z` | anyone | Not found |
+| `AAAPZ9999Z` | anyone | Provider unavailable |
+
+Why not Aadhaar? Checking an Aadhaar number needs a UIDAI licence (or a licensed KYC agency), and storing Aadhaar data carries strict legal obligations. Ticketing platforms that pay organizers verify PAN (plus a bank account) instead.
 
 ## Project Structure
 
