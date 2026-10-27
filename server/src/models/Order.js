@@ -49,6 +49,7 @@ const orderSchema = new mongoose.Schema(
       provider: { type: String, default: 'mock' },
       chargeId: String,
       last4: String,
+      method: String, // card, upi, netbanking... (Razorpay)
       refundId: String,
     },
     failureReason: String,

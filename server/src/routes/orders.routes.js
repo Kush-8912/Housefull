@@ -23,10 +23,17 @@ const cardSchema = z.object({
 // Mounted at /api/holds/:id/checkout
 export const checkoutRouter = Router({ mergeParams: true });
 
-checkoutRouter.post('/', requireAuth, validate(z.object({ card: cardSchema.optional() })), asyncHandler(async (req, res) => {
+// What Razorpay's checkout hands the browser after a successful payment.
+const razorpaySchema = z.object({
+  orderId: z.string().regex(/^order_\w+$/, 'Invalid Razorpay order'),
+  paymentId: z.string().regex(/^pay_\w+$/, 'Invalid Razorpay payment'),
+  signature: z.string().regex(/^[a-f0-9]{64}$/i, 'Invalid Razorpay signature'),
+});
+
+checkoutRouter.post('/', requireAuth, validate(z.object({ card: cardSchema.optional(), razorpay: razorpaySchema.optional() })), asyncHandler(async (req, res) => {
   const key = req.get('Idempotency-Key');
   if (!key || !/^[\w-]{8,100}$/.test(key)) throw AppError.badRequest('A valid Idempotency-Key header is required');
-  const { order, tickets, replayed } = await checkout({ user: req.user, holdId: req.params.id, idempotencyKey: key, card: req.body.card });
+  const { order, tickets, replayed } = await checkout({ user: req.user, holdId: req.params.id, idempotencyKey: key, card: req.body.card, razorpay: req.body.razorpay });
   res.status(replayed ? 200 : 201).json({ order, tickets: tickets.map(withQr), replayed });
 }));
 

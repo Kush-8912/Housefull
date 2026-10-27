@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { RazorpayError, confirmPayment, refundPayment } from './razorpay.js';
 
 /**
  * Mock card processor standing in for a real gateway (Stripe/Razorpay).
@@ -33,7 +34,20 @@ function luhnValid(number) {
   return sum % 10 === 0;
 }
 
-export async function charge({ amount, card, idempotencyKey }) {
+/**
+ * Take payment for a checkout. With a Razorpay proof (the browser already
+ * paid in Razorpay's checkout) this confirms that payment with Razorpay;
+ * otherwise it charges the demo card.
+ */
+export async function charge({ amount, card, razorpay, holdId, idempotencyKey }) {
+  if (razorpay) {
+    try {
+      return await confirmPayment({ holdId, amount, proof: razorpay });
+    } catch (err) {
+      if (err instanceof RazorpayError) throw new PaymentError(err.code, err.message);
+      throw err;
+    }
+  }
   if (charges.has(idempotencyKey)) return charges.get(idempotencyKey);
   await sleep(LATENCY_MS);
 
@@ -55,6 +69,7 @@ export async function charge({ amount, card, idempotencyKey }) {
 
 // Full or partial refund; `amount` defaults to the whole charge, like a real gateway.
 export async function refund({ chargeId, amount }) {
+  if (String(chargeId).startsWith('pay_')) return refundPayment({ chargeId, amount }); // a Razorpay payment
   await sleep(LATENCY_MS / 2);
   return { refundId: `re_${crypto.randomBytes(10).toString('hex')}`, chargeId, amount };
 }

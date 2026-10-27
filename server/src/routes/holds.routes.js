@@ -11,6 +11,8 @@ import { createHold, releaseHold, loadOwnedHold } from '../services/holdService.
 import { findUsablePromo, normalizeCode } from '../services/promoService.js';
 import { resolveAddonLines } from '../services/addonService.js';
 import { quoteHold } from '../services/quoteService.js';
+import { createOrder, razorpayEnabled, RazorpayError } from '../services/razorpay.js';
+import { env } from '../config/env.js';
 import { Addon } from '../models/Addon.js';
 
 const seatsOf = (hold) => Seat.find({ _id: { $in: hold.seats } }, 'label tier price row number').sort({ row: 1, number: 1 }).lean();
@@ -48,7 +50,27 @@ holdsRouter.get('/:id', requireAuth, asyncHandler(async (req, res) => {
     addonMenu(hold.event),
   ]);
   const quote = await quoteHold(hold, seats);
-  res.json({ hold: { ...hold.toJSON(), live: hold.isLive() }, event, seats, menu, ...quote });
+  // Which payment flow the checkout page should show.
+  const payments = razorpayEnabled() ? { provider: 'razorpay', keyId: env.RAZORPAY_KEY_ID } : { provider: 'demo' };
+  res.json({ hold: { ...hold.toJSON(), live: hold.isLive() }, event, seats, menu, ...quote, payments });
+}));
+
+// Start a Razorpay payment for the hold's current bill. The browser opens
+// Razorpay's checkout with this order; checkout then confirms the payment.
+holdsRouter.post('/:id/razorpay-order', requireAuth, asyncHandler(async (req, res) => {
+  if (!razorpayEnabled()) throw AppError.notFound('Razorpay');
+  const hold = await loadOwnedHold(req.params.id, req.user);
+  if (!hold.isLive()) throw AppError.gone('Your seat hold has expired. Please pick your seats again.', { code: 'HOLD_EXPIRED' });
+  const quote = await quoteHold(hold, await seatsOf(hold));
+  if (quote.promo?.error) throw AppError.conflict(`${quote.promo.code}: ${quote.promo.error}`, { code: 'PROMO_INVALID' });
+  if (quote.addonsError) throw AppError.conflict(quote.addonsError, { code: 'ADDON_SOLD_OUT' });
+  if (!(quote.total > 0)) throw AppError.badRequest('This order is free; no payment needed', { code: 'NOTHING_TO_PAY' });
+  try {
+    res.json({ keyId: env.RAZORPAY_KEY_ID, ...(await createOrder({ amount: quote.total, holdId: hold._id, userId: req.user._id })) });
+  } catch (err) {
+    if (err instanceof RazorpayError) throw new AppError(502, err.message, { code: 'GATEWAY_ERROR' });
+    throw err;
+  }
 }));
 
 // Apply a promo code to a hold. It is checked now for instant feedback and

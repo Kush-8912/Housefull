@@ -15,6 +15,7 @@ import { sendMail } from './mailer.js';
 import { orderConfirmationEmail, orderRefundedEmail } from './emails.js';
 import { announceCancellation, ticketHolders } from './showChanges.js';
 import { refundQuote } from './refundPolicy.js';
+import { refundUnused } from './razorpay.js';
 
 // Payment must not be cut short by the hold expiring mid-checkout.
 const CHECKOUT_GRACE_MS = 2 * 60_000;
@@ -36,7 +37,25 @@ async function orderWithTickets(order) {
  * returns the original order, and the active->converting lock means a second
  * concurrent checkout of the same hold is refused before any charge happens.
  */
-export async function checkout({ user, holdId, idempotencyKey, card }) {
+/**
+ * Pay for a hold and issue tickets. With Razorpay the buyer has already paid
+ * in Razorpay's window by now, so if this checkout fails for any reason
+ * (hold expired, price changed, seats clash) the payment is refunded rather
+ * than kept for nothing. A request that loses a race to its own duplicate
+ * (CHECKOUT_IN_PROGRESS) leaves the money alone: the other one is using it.
+ */
+export async function checkout(args) {
+  try {
+    return await checkoutOnce(args);
+  } catch (err) {
+    if (args.razorpay && err?.code !== 'CHECKOUT_IN_PROGRESS' && !err?.refunded) {
+      await refundUnused(args.razorpay).catch((e) => console.error('[razorpay] could not refund an unused payment:', e.message));
+    }
+    throw err;
+  }
+}
+
+async function checkoutOnce({ user, holdId, idempotencyKey, card, razorpay }) {
   const existing = await Order.findOne({ user: user._id, idempotencyKey });
   if (existing) {
     if (existing.status === 'pending') throw AppError.conflict('This payment is still being processed', { code: 'CHECKOUT_IN_PROGRESS' });
@@ -137,9 +156,14 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
   }
   const fail = (reason) => Order.updateOne({ _id: order._id }, { status: 'failed', failureReason: reason });
 
-  if (amount > 0 && !card) {
+  if (amount > 0 && !card && !razorpay) {
     await Promise.all([abandon(), fail('Card details are required')]);
     throw AppError.badRequest('Card details are required', { code: 'CARD_REQUIRED' });
+  }
+  // One Razorpay payment can only ever pay for one order.
+  if (razorpay && await Order.exists({ 'payment.chargeId': razorpay.paymentId })) {
+    await Promise.all([abandon(), fail('That payment has already been used')]);
+    throw Object.assign(AppError.conflict('That payment has already been used for another order', { code: 'PAYMENT_REUSED' }), { refunded: true });
   }
 
   // 1. Redeem the promo code and take add-on stock (after the order exists,
@@ -164,7 +188,7 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
   let paid = { chargeId: null, last4: null };
   if (amount > 0) {
     try {
-      paid = await payments.charge({ amount, card, idempotencyKey: `${user._id}:${idempotencyKey}` });
+      paid = await payments.charge({ amount, card, razorpay, holdId: locked._id, idempotencyKey: `${user._id}:${idempotencyKey}` });
     } catch (err) {
       const reason = err instanceof payments.PaymentError ? err.message : 'Payment could not be completed';
       await Promise.all([fail(reason), abandon(), giveBack()]);
@@ -187,7 +211,7 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
       unlock('expired'),
       giveBack(),
     ]);
-    throw AppError.conflict('Your seats became unavailable during payment. You have been refunded.', { code: 'SEATS_UNAVAILABLE' });
+    throw Object.assign(AppError.conflict('Your seats became unavailable during payment. You have been refunded.', { code: 'SEATS_UNAVAILABLE' }), { refunded: true });
   }
 
   // 4. Issue tickets and finalise.
@@ -196,7 +220,7 @@ export async function checkout({ user, holdId, idempotencyKey, card }) {
   );
   order.status = 'paid';
   order.paidAt = new Date();
-  order.payment = { provider: 'mock', chargeId: paid.chargeId, last4: paid.last4 };
+  order.payment = { provider: razorpay ? 'razorpay' : 'mock', chargeId: paid.chargeId, last4: paid.last4, method: paid.method ?? (paid.chargeId ? 'card' : null) };
   await order.save();
   await unlock('converted');
 
