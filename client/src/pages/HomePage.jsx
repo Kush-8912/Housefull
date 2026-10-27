@@ -7,6 +7,8 @@ import { useDebounced } from '../hooks/useDebounced';
 import { setCityPref, useCityPref } from '../lib/cityPref';
 import { EventCard } from '../components/EventCard';
 import { EmptyState, ErrorState, Spinner } from '../components/States';
+import { CountUp, Mask, Words } from '../components/Motion';
+import { usePointer } from '../hooks/usePointer';
 
 const WHEN = {
   any: { label: 'Any date' },
@@ -30,6 +32,7 @@ export function HomePage() {
   const [lineup, setLineup] = useState(null);
   const [state, setState] = useState({ status: 'loading', data: null, error: null });
   const [reload, setReload] = useState(0);
+  const hero = usePointer();
 
   const update = (patch) => {
     const next = new URLSearchParams(params);
@@ -78,23 +81,33 @@ export function HomePage() {
   const clearAll = () => { setQ(''); setCityPref(''); setParams({}, { replace: true }); };
 
   return (
-    <div>
-      <section className="-mt-2 pb-12">
-        <p className="eyebrow flex items-center gap-2">
+    <div className="relative">
+      <section ref={hero} className="group/hero relative isolate -mt-2 pb-12">
+        {/* House lights: two follow-spots sweep the stage, and a warm glow trails the pointer. */}
+        <div className="pointer-events-none absolute left-1/2 -top-10 -z-10 h-[46rem] w-screen -translate-x-1/2 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_45%,transparent)]" aria-hidden>
+          <span className="beam left-[4%] animate-[sweep-l_9s_ease-in-out_infinite_alternate]" />
+          <span className="beam right-[2%] animate-[sweep-r_11s_ease-in-out_infinite_alternate]" />
+        </div>
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover/hero:opacity-100"
+          style={{ background: 'radial-gradient(520px circle at var(--mx, 50%) var(--my, 30%), rgb(255 83 33 / 0.13), transparent 60%)' }}
+          aria-hidden
+        />
+        <p className="eyebrow flex animate-rise items-center gap-2">
           <span className="relative flex h-2 w-2" aria-hidden>
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-60" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
           </span>
-          Live seat maps{lineup ? ` · ${lineup.total} event${lineup.total === 1 ? '' : 's'} on sale` : ''}
+          Live seat maps{lineup && <> · <CountUp value={lineup.total} /> event{lineup.total === 1 ? '' : 's'} on sale</>}
         </p>
         <h1 className="display mt-6 text-[clamp(3.6rem,12.5vw,10.5rem)]">
-          Pick the seat.
+          <Words delay={100} step={90}>Pick the seat.</Words>
           <br />
-          <span className="text-transparent [-webkit-text-stroke:2px_var(--color-fg)] sm:[-webkit-text-stroke-width:3px]">Not the</span>{' '}
-          <span className="text-signal">section.</span>
+          <Words delay={370} step={90} className="text-transparent [-webkit-text-stroke:2px_var(--color-fg)] sm:[-webkit-text-stroke-width:3px]">Not the</Words>{' '}
+          <Mask delay={560}><span className="text-shine">section.</span></Mask>
         </h1>
         <div className="mt-10 grid gap-8 border-t border-line pt-8 md:grid-cols-[1.1fr_2fr]">
-          <p className="max-w-sm text-[15px] leading-relaxed text-muted">
+          <p className="max-w-sm animate-rise text-[15px] leading-relaxed text-muted [animation-delay:700ms]">
             Every seat in the house, updating live as people book. The ones you pick are held for you while you pay, so nobody can take them mid-checkout.
           </p>
           <ol className="grid gap-6 sm:grid-cols-3">
@@ -102,8 +115,8 @@ export function HomePage() {
               ['01', 'Pick', 'Choose exact seats on the live map.'],
               ['02', 'Hold', 'They’re locked to you during checkout.'],
               ['03', 'Walk in', 'Show the QR ticket at the door.'],
-            ].map(([n, title, text]) => (
-              <li key={n} className="border-l border-line pl-4">
+            ].map(([n, title, text], i) => (
+              <li key={n} className="animate-rise border-l border-line pl-4 transition-colors hover:border-signal" style={{ animationDelay: `${800 + i * 120}ms` }}>
                 <span className="font-mono text-[11px] text-signal">{n}</span>
                 <p className="display mt-1 text-2xl">{title}</p>
                 <p className="mt-1 text-sm text-muted">{text}</p>
@@ -113,6 +126,7 @@ export function HomePage() {
         </div>
       </section>
 
+      {lineup?.items.length > 0 && <NowShowing items={lineup.items} />}
       {lineup?.items.length >= 3 && <NextUp items={lineup.items} />}
 
       <section className="pt-14" aria-labelledby="on-sale">
@@ -197,6 +211,27 @@ export function HomePage() {
   );
 }
 
+// A theatre marquee of everything on sale, scrolling past forever. Purely
+// decorative: the same events are listed (and linked) right below it.
+function NowShowing({ items }) {
+  const titles = items.map((e) => e.title);
+  // Repeat short line-ups so one run is always wider than the screen.
+  const loop = Array.from({ length: Math.ceil(8 / titles.length) }, () => titles).flat();
+  const run = (copy) => loop.map((t, i) => (
+    <span key={`${copy}${i}`} className="flex shrink-0 items-center">
+      <span className={`display px-6 text-4xl sm:px-8 sm:text-6xl ${i % 2 ? 'text-transparent [-webkit-text-stroke:1.5px_var(--color-fg)]' : 'text-fg'}`}>{t}</span>
+      <span className="text-2xl text-signal">✦</span>
+    </span>
+  ));
+  return (
+    <div className="group relative left-1/2 mb-10 w-screen -translate-x-1/2 overflow-hidden border-y border-line bg-ink-900 py-4 [mask-image:linear-gradient(to_right,transparent,#000_8%,#000_92%,transparent)]" aria-hidden>
+      <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused]" style={{ animationDuration: `${loop.length * 5}s` }}>
+        {run('a')}{run('b')}
+      </div>
+    </div>
+  );
+}
+
 // The next few shows, listed like a box-office programme board.
 function NextUp({ items }) {
   const soonest = [...items].sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt)).slice(0, 5);
@@ -204,21 +239,21 @@ function NextUp({ items }) {
     <section className="pt-4" aria-labelledby="next-up">
       <h2 id="next-up" className="eyebrow border-b border-line-strong pb-3 text-fg">Next up</h2>
       <ul>
-        {soonest.map((e) => <NextUpRow key={e.id} event={e} />)}
+        {soonest.map((e, i) => <NextUpRow key={e.id} event={e} index={i} />)}
       </ul>
     </section>
   );
 }
 
-function NextUpRow({ event: e }) {
+function NextUpRow({ event: e, index }) {
   const a = e.availability;
   const taken = a?.total ? (a.total - a.available) / a.total : 0;
   const soldOut = a && a.available === 0;
   return (
-    <li className="border-b border-line">
+    <li className="reveal border-b border-line">
       <Link
         to={`/events/${e.id}`}
-        className="group grid grid-cols-[4.5rem_1fr_auto] items-center gap-x-4 gap-y-1 py-4 transition-colors hover:bg-ink-900 sm:grid-cols-[6.5rem_1fr_9rem_5.5rem] sm:gap-x-6 sm:px-2"
+        className="group relative grid grid-cols-[4.5rem_1fr_auto] items-center gap-x-4 gap-y-1 py-4 transition-[background-color,padding] duration-300 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:origin-bottom before:scale-y-0 before:bg-signal before:transition-transform before:duration-300 hover:bg-ink-900 hover:before:scale-y-100 sm:grid-cols-[6.5rem_1fr_9rem_5.5rem] sm:gap-x-6 sm:px-2 sm:hover:pl-4"
       >
         <span className="row-span-2 font-mono text-xs uppercase leading-tight tracking-[0.08em] text-muted sm:row-span-1">
           <span className="block text-fg">{weekday(e.startsAt)} {shortDate(e.startsAt)}</span>
@@ -232,7 +267,7 @@ function NextUpRow({ event: e }) {
           {a && (
             <>
               <span className="h-1 w-16 overflow-hidden bg-line" aria-hidden>
-                <span className={`block h-full ${soldOut ? 'bg-stop' : taken >= 0.9 ? 'bg-warn' : 'bg-fg/60'}`} style={{ width: `${Math.max(taken * 100, 3)}%` }} />
+                <span className={`block h-full origin-left animate-grow-x ${soldOut ? 'bg-stop' : taken >= 0.9 ? 'bg-warn' : 'bg-fg/60'}`} style={{ width: `${Math.max(taken * 100, 3)}%`, animationDelay: `${300 + index * 120}ms` }} />
               </span>
               <span className={`font-mono text-[11px] uppercase tracking-[0.08em] ${soldOut ? 'text-stop' : 'text-faint'}`}>
                 {soldOut ? 'Sold out' : `${a.available} left`}
@@ -281,10 +316,10 @@ function SkeletonGrid() {
     <div className="grid gap-5 min-[540px]:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Loading events">
       {[0, 1, 2].map((i) => (
         <div key={i} className="overflow-hidden rounded-[4px] border border-line bg-ink-900">
-          <div className="aspect-[16/10] animate-pulse bg-ink-850" />
+          <div className="shimmer aspect-[16/10]" />
           <div className="space-y-3 p-5">
-            <div className="h-6 w-3/4 animate-pulse bg-ink-850" />
-            <div className="h-3 w-1/2 animate-pulse bg-ink-850" />
+            <div className="shimmer h-6 w-3/4" />
+            <div className="shimmer h-3 w-1/2" />
           </div>
           <div className="h-12 border-t border-dashed border-line" />
         </div>
