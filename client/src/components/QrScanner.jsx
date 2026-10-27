@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, CameraOff } from 'lucide-react';
 import { Spinner } from './States';
+import { createScanGate } from '../lib/scanGate';
 
 // Why the camera didn't start, in words door staff can act on. Browsers report
 // the reason as a DOMException name; html5-qrcode sometimes wraps it in a string.
@@ -21,13 +22,14 @@ function cameraProblem(err) {
 
 /**
  * Camera QR scanner. The camera reports the same code many times per second,
- * so identical reads within a short window are ignored, and reads are paused
- * while the parent is still handling the previous one.
+ * so a code counts once for as long as it stays in view (see scanGate), and
+ * reads are paused while the parent is still handling the previous one.
  */
 export function QrScanner({ onScan, paused }) {
   const regionId = `qr-${useId().replace(/:/g, '')}`;
   const scannerRef = useRef(null);
-  const lastRef = useRef({ code: null, at: 0 });
+  const gateRef = useRef(null);
+  gateRef.current ??= createScanGate(3000);
   const pausedRef = useRef(paused);
   const onScanRef = useRef(onScan);
   useLayoutEffect(() => {
@@ -47,11 +49,7 @@ export function QrScanner({ onScan, paused }) {
   };
 
   const onDecode = (text) => {
-    const now = Date.now();
-    if (pausedRef.current) return;
-    if (text === lastRef.current.code && now - lastRef.current.at < 3000) return;
-    lastRef.current = { code: text, at: now };
-    onScanRef.current(text);
+    if (gateRef.current(text, Date.now(), pausedRef.current)) onScanRef.current(text);
   };
 
   const start = async () => {
