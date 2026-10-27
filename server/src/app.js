@@ -26,11 +26,11 @@ export function createApp() {
           directives: {
             // Organizers can use any HTTPS image as an event cover.
             'img-src': ["'self'", 'data:', 'https:'],
-            // Same-origin websocket for live seat updates, plus Google sign-in.
-            'connect-src': ["'self'", 'wss:', 'ws:', 'https://accounts.google.com/gsi/'],
-            // "Continue with Google": Google's script and the button's iframe.
-            'script-src': ["'self'", 'https://accounts.google.com/gsi/client'],
-            'frame-src': ['https://accounts.google.com/gsi/'],
+            // Same-origin websocket for live seat updates, plus Google sign-in and Razorpay.
+            'connect-src': ["'self'", 'wss:', 'ws:', 'https://accounts.google.com/gsi/', 'https://*.razorpay.com'],
+            // "Continue with Google" and Razorpay: their scripts and windows.
+            'script-src': ["'self'", 'https://accounts.google.com/gsi/client', 'https://checkout.razorpay.com'],
+            'frame-src': ['https://accounts.google.com/gsi/', 'https://api.razorpay.com', 'https://checkout.razorpay.com'],
           },
         }
       : false,
