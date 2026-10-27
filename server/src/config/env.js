@@ -35,5 +35,8 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const env = { ...parsed.data, APP_URL: (parsed.data.APP_URL ?? parsed.data.CLIENT_ORIGIN).replace(/\/$/, '') };
+// Public URL for links in emails and share previews. A blank APP_URL counts as
+// unset; on Render the service's own URL (RENDER_EXTERNAL_URL) is used then.
+const appUrl = parsed.data.APP_URL?.trim() || process.env.RENDER_EXTERNAL_URL || parsed.data.CLIENT_ORIGIN;
+export const env = { ...parsed.data, APP_URL: appUrl.replace(/\/$/, '') };
 export const isProd = env.NODE_ENV === 'production';
