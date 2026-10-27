@@ -111,7 +111,9 @@ async function main() {
 
   const passwordHash = await User.hashPassword(DEMO_PASSWORD);
   const [organizer, , friend] = await User.create([
-    { name: 'Riya Organiser', email: 'organizer@housefull.dev', role: 'organizer', passwordHash },
+    // Already a verified host (PAN ABCPO1234K in the demo KYC), so the seeded events can be published.
+    { name: 'Riya Organiser', email: 'organizer@housefull.dev', role: 'organizer', passwordHash,
+      hostVerification: { legalName: 'Riya Organiser', holderType: 'person', panLast4: '234K', verifiedAt: new Date() } },
     { name: 'Aarav Attendee', email: 'attendee@housefull.dev', role: 'attendee', passwordHash },
     // A second attendee: someone to transfer tickets to, and the buyer who sold out the workshop.
     { name: 'Meera Friend', email: 'friend@housefull.dev', role: 'attendee', passwordHash },
@@ -200,6 +202,7 @@ async function main() {
   console.log('Promo codes: EARLY20 (Midnight Echoes), STUDENT500 (Frontend Forward). Pottery workshop is sold out.');
   console.log('Hamlet has 3 showtimes. Sunday Jazz Brunch already happened: log in as attendee@ to review it.');
   console.log(`Log in as organizer@, attendee@ or friend@housefull.dev with password "${DEMO_PASSWORD}".`);
+  console.log('organizer@ is already a verified host. New organizers verify on their profile (demo PAN ABCPO1234K for "Riya Organiser").');
   await backgroundIdle();
 }
 
