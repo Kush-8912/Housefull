@@ -83,7 +83,7 @@ export function EventCard({ event, index = 0 }) {
           </span>
           <span className="flex items-center gap-2">
             {soldOut ? (
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-stop">Sold out</span>
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-stop">Housefull</span>
             ) : few ? (
               <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-warn">{a.available} left</span>
             ) : a ? (

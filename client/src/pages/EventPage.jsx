@@ -189,7 +189,7 @@ export function EventPage() {
         </div>
       </header>
 
-      <StatusBanner event={event} available={available} isOrganizer={user?.role === 'organizer' && !event.isOwner} />
+      <StatusBanner event={event} available={available} total={seats.length} isOrganizer={user?.role === 'organizer' && !event.isOwner} />
       {event.onSale && available === 0 && !event.isOwner && user?.role !== 'organizer' && <Waitlist eventId={event.id} />}
       {hold && <ActiveHoldBanner hold={hold} onReleased={load} />}
 
@@ -373,7 +373,7 @@ function Showtimes({ shows, current }) {
           const active = String(s.id) === String(current);
           const soldOut = s.availability && s.availability.available === 0;
           const off = s.status === 'cancelled' || s.past;
-          const note = s.status === 'cancelled' ? 'Cancelled' : s.past ? 'Ended' : soldOut ? 'Sold out' : s.status === 'draft' ? 'Draft' : `${s.availability?.available ?? '\u2014'} left`;
+          const note = s.status === 'cancelled' ? 'Cancelled' : s.past ? 'Ended' : soldOut ? 'Housefull' : s.status === 'draft' ? 'Draft' : `${s.availability?.available ?? '\u2014'} left`;
           return (
             <Link
               key={s.id}
@@ -600,7 +600,7 @@ const duration = (mins) => {
   return [h && `${h} hr`, m && `${m} min`].filter(Boolean).join(' ') || '—';
 };
 
-function StatusBanner({ event, available, isOrganizer }) {
+function StatusBanner({ event, available, total, isOrganizer }) {
   let msg = null;
   let tone = 'warn';
   if (event.status === 'cancelled') { msg = 'This event has been cancelled. All ticket holders have been refunded.'; tone = 'stop'; }
@@ -608,8 +608,9 @@ function StatusBanner({ event, available, isOrganizer }) {
   else if (!event.onSale && event.salesStartAt && new Date(event.salesStartAt) > new Date()) {
     msg = `Ticket sales open ${dateTime(event.salesStartAt)}. The seat map is here so you can plan ahead.`;
   } else if (!event.onSale) msg = 'Ticket sales for this event have closed.';
-  else if (available === 0) msg = 'Sold out. Seats on hold may come back if buyers don’t finish checkout. This map updates live.';
+  else if (available === 0) msg = 'It’s housefull. Seats on hold may come back if buyers don’t finish checkout. This map updates live.';
   else if (isOrganizer) msg = 'You’re signed in as an organizer. Use an attendee account to buy tickets.';
+  else if (available <= Math.max(5, total * 0.1)) { msg = `Only ${plural(available, 'seat')} left. Get in before it’s housefull.`; tone = 'info'; }
   if (!msg) return null;
   return <Notice tone={tone} className="mt-8">{msg}</Notice>;
 }

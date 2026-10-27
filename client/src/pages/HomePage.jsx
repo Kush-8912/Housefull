@@ -270,7 +270,7 @@ function NextUpRow({ event: e, index }) {
                 <span className={`block h-full origin-left animate-grow-x ${soldOut ? 'bg-stop' : taken >= 0.9 ? 'bg-warn' : 'bg-fg/60'}`} style={{ width: `${Math.max(taken * 100, 3)}%`, animationDelay: `${300 + index * 120}ms` }} />
               </span>
               <span className={`font-mono text-[11px] uppercase tracking-[0.08em] ${soldOut ? 'text-stop' : 'text-faint'}`}>
-                {soldOut ? 'Sold out' : `${a.available} left`}
+                {soldOut ? 'Housefull' : `${a.available} left`}
               </span>
             </>
           )}
