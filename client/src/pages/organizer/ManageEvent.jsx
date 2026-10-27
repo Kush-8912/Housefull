@@ -10,6 +10,7 @@ import { useDebounced } from '../../hooks/useDebounced';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { QrScanner } from '../../components/QrScanner';
 import { EventReport } from './EventReport';
+import { FeedbackTab } from './FeedbackTab';
 import { CHECKIN_MESSAGES, CheckinResult } from '../../components/CheckinResult';
 import { SeatMap, previewSeats } from '../../components/SeatMap';
 import { Badge, EmptyState, ErrorState, FieldError, Notice, PageLoader, Spinner } from '../../components/States';
@@ -197,7 +198,7 @@ export function ManageEvent() {
           {/* On phones the tabs scroll sideways; the faded right edge shows there are more. */}
           <div ref={tabRow} className="relative -mr-4 mt-10 flex gap-6 overflow-x-auto border-b border-line pr-8 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] [scrollbar-width:none] sm:mr-0 sm:pr-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden" role="tablist">
             <span ref={tabBar} className="slider bottom-0 left-0 h-0.5 bg-signal" aria-hidden />
-            {[['overview', 'Overview'], ['report', 'How it went'], ['checkin', 'Check-in'], ['guests', 'Guest list'], ['addons', 'Add-ons'], ['promos', 'Promo codes']].map(([k, label]) => (
+            {[['overview', 'Overview'], ['report', 'How it went'], ['checkin', 'Check-in'], ['guests', 'Guest list'], ['feedback', 'Feedback form'], ['addons', 'Add-ons'], ['promos', 'Promo codes']].map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={tab === k} data-active={tab === k}
                 onClick={(e) => {
                   setTab(k);
@@ -219,6 +220,7 @@ export function ManageEvent() {
             {tab === 'guests' && <Guests eventId={id} />}
             {tab === 'addons' && <Addons eventId={id} event={event} />}
             {tab === 'promos' && <Promos eventId={id} event={event} />}
+            {tab === 'feedback' && <FeedbackTab eventId={id} />}
           </div>
         </>
       )}

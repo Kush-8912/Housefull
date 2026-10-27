@@ -9,6 +9,7 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderPage, TicketsPage } from './pages/TicketsPage';
 import { SavedPage } from './pages/SavedPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { FeedbackPage } from './pages/FeedbackPage';
 import { PageLoader } from './components/States';
 
 // Organizer screens pull in charts and the camera scanner; buyers never need them.
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="events/:id" element={<EventPage />} />
+        <Route path="events/:id/feedback" element={<RequireAuth><FeedbackPage /></RequireAuth>} />
 
         <Route path="checkout/:holdId" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
         <Route path="orders/:id" element={<RequireAuth><OrderPage /></RequireAuth>} />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarPlus, CheckCircle2, ChevronDown, Gift, MapPin, Popcorn, ShieldQuestion, Star, Ticket } from 'lucide-react';
+import { CalendarPlus, CheckCircle2, ChevronDown, ClipboardList, Gift, MapPin, Popcorn, ShieldQuestion, Star, Ticket } from 'lucide-react';
 import { api } from '../lib/api';
 import { amount, byLabel, dateTime, dayMonth, plural } from '../lib/format';
 import { TicketCard } from '../components/TicketCard';
@@ -99,6 +99,11 @@ function OrderCard({ order, onCancelled, defaultOpen }) {
             <div className="flex gap-2">
               {!past && event.status === 'published' && (
                 <button type="button" className="btn-ghost" onClick={() => downloadIcs(event)}><CalendarPlus className="h-4 w-4" aria-hidden /> Calendar</button>
+              )}
+              {order.feedback?.form && order.tickets.some((t) => t.checkedInAt) && (
+                <Link to={`/events/${event._id}/feedback`} className={order.feedback.answered ? 'btn-ghost' : 'btn-primary'}>
+                  <ClipboardList className="h-4 w-4" aria-hidden /> {order.feedback.answered ? 'See how everyone answered' : 'Give feedback'}
+                </Link>
               )}
               {past && order.tickets.some((t) => t.checkedInAt) && (
                 <Link to={`/events/${event._id}#reviews`} className="btn-ghost"><Star className="h-4 w-4 text-warn" aria-hidden /> Rate</Link>
