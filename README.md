@@ -13,7 +13,7 @@ Pick your exact seat on a live map, hold it for a few minutes while you pay, and
 | **Live app** | **https://housefull-4eq8.onrender.com** (free tier: the first visit after a quiet spell takes ~30 s to wake up) |
 | **Demo video** | _add link_ |
 | **Demo logins** | `attendee@housefull.dev`, `friend@housefull.dev` (a second attendee to transfer tickets to), `organizer@housefull.dev`; password `demo1234`. Promo codes `EARLY20` and `STUDENT500`; the pottery workshop is seeded sold out (waitlist), Hamlet has three showtimes, several events have add-on menus, and *Sunday Jazz Brunch* already happened so `attendee@` can review it |
-| **Test card** | `4242 4242 4242 4242`, any future expiry, any CVC ([more](#test-cards)) |
+| **Test card** | Live site (Razorpay test mode): `4386 2894 0766 0153`, any future expiry, CVV and OTP. Without Razorpay keys (local): `4242 4242 4242 4242`, any future expiry and CVC ([more](#payments-razorpay-or-the-demo-processor)) |
 
 ---
 
