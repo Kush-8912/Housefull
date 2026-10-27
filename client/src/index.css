@@ -42,7 +42,6 @@
      (a leftover transform would trap fixed-position children). */
   --animate-page: page 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
   --animate-line-up: line-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-  --animate-marquee: marquee 40s linear infinite;
   --animate-seat-in: seat-in 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.25) backwards;
   --animate-stamp: stamp 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) backwards;
   --animate-print: print 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
@@ -68,9 +67,6 @@
   }
   @keyframes line-up {
     from { transform: translateY(110%) rotate(5deg); }
-  }
-  @keyframes marquee {
-    to { transform: translateX(-50%); }
   }
   @keyframes seat-in {
     from { opacity: 0; transform: translateY(22px) scale(0.3); }

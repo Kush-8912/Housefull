@@ -8,6 +8,7 @@ import { setCityPref, useCityPref } from '../lib/cityPref';
 import { EventCard } from '../components/EventCard';
 import { EmptyState, ErrorState, Spinner } from '../components/States';
 import { CountUp, Mask, Words } from '../components/Motion';
+import { LiveHouse } from '../components/LiveHouse';
 import { usePointer } from '../hooks/usePointer';
 
 const WHEN = {
@@ -126,7 +127,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {lineup?.items.length > 0 && <NowShowing items={lineup.items} />}
+      <LiveHouse />
       {lineup?.items.length >= 3 && <NextUp items={lineup.items} />}
 
       <section className="pt-14" aria-labelledby="on-sale">
@@ -207,27 +208,6 @@ export function HomePage() {
           )}
         </div>
       </section>
-    </div>
-  );
-}
-
-// A theatre marquee of everything on sale, scrolling past forever. Purely
-// decorative: the same events are listed (and linked) right below it.
-function NowShowing({ items }) {
-  const titles = items.map((e) => e.title);
-  // Repeat short line-ups so one run is always wider than the screen.
-  const loop = Array.from({ length: Math.ceil(8 / titles.length) }, () => titles).flat();
-  const run = (copy) => loop.map((t, i) => (
-    <span key={`${copy}${i}`} className="flex shrink-0 items-center">
-      <span className={`display px-6 text-4xl sm:px-8 sm:text-6xl ${i % 2 ? 'text-transparent [-webkit-text-stroke:1.5px_var(--color-fg)]' : 'text-fg'}`}>{t}</span>
-      <span className="text-2xl text-signal">✦</span>
-    </span>
-  ));
-  return (
-    <div className="group relative left-1/2 mb-10 w-screen -translate-x-1/2 overflow-hidden border-y border-line bg-ink-900 py-4 [mask-image:linear-gradient(to_right,transparent,#000_8%,#000_92%,transparent)]" aria-hidden>
-      <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused]" style={{ animationDuration: `${loop.length * 5}s` }}>
-        {run('a')}{run('b')}
-      </div>
     </div>
   );
 }
