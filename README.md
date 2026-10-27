@@ -17,6 +17,29 @@ Pick your exact seat on a live map, hold it for a few minutes while you pay, and
 
 ---
 
+## Screenshots
+
+![Home page: "Pick the seat. Not the section." with a live preview of a house selling out](docs/screenshots/01-home.jpg)
+
+| | |
+|---|---|
+| ![Event page with date, venue and live viewer count](docs/screenshots/02-event.jpg) | ![Live seat map: "Find best seats" picked A7 and A8 together](docs/screenshots/03-seat-map.jpg) |
+| **Event page.** Date, venue, live "who's looking" count, interest, share and calendar. | **Live seat map.** Seats update in real time; *Find best seats* picks the best seats together. |
+| ![Checkout with hold countdown, Razorpay payment, add-ons and order summary](docs/screenshots/04-checkout.jpg) | ![Order confirmation with QR tickets stamped as checked in](docs/screenshots/05-ticket.jpg) |
+| **Checkout.** Seats are held on a countdown while you pay with Razorpay; add food and merch, apply promo codes. | **Tickets.** Signed QR tickets; scanned ones are stamped *checked in* with the time. |
+| ![Organizer dashboard listing events with sales progress](docs/screenshots/06-organizer-dashboard.jpg) | ![Event analytics: revenue, tickets sold, sell-through, check-ins and a sales chart](docs/screenshots/07-event-analytics.jpg) |
+| **Organizer dashboard.** Every event and showtime with its sales at a glance. | **Event analytics.** Revenue, sell-through, check-ins, sales by tier and per day. |
+
+![Feedback insights: what the audience loved, what to fix, what to do next, with quotes](docs/screenshots/08-feedback-insights.jpg)
+
+**Feedback insights.** After the show, checked-in guests answer the host's form; Housefull turns the answers into what worked, what to fix and what to do next.
+
+![Housefull on a phone: home page, seat map and ticket](docs/screenshots/09-mobile.jpg)
+
+**On a phone.** Every screen is responsive down to 360 px.
+
+---
+
 ## Problem Statement
 
 Small and mid-sized venues (comedy clubs, college auditoriums, indie gigs, theatre groups, workshops) sell reserved seating through spreadsheets, WhatsApp, or general-admission ticket tools that don't understand seats. This leads to:
