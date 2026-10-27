@@ -179,6 +179,15 @@
   from { transform: rotate(30deg); }
   to { transform: rotate(-12deg); }
 }
+@keyframes curtain-l {
+  to { transform: translateX(-101%) skewX(-4deg); }
+}
+@keyframes curtain-r {
+  to { transform: translateX(101%) skewX(4deg); }
+}
+@keyframes curtain-mark {
+  to { opacity: 0; transform: scale(1.6); filter: blur(12px); }
+}
 
 @layer base {
   html {
@@ -360,6 +369,34 @@
     animation-range: entry 0% entry 55%;
   }
 }
+/* Theatre curtain: velvet folds with light catching each one. */
+@utility velvet {
+  background:
+    linear-gradient(to bottom, rgb(0 0 0 / 0.55), transparent 18%, transparent 75%, rgb(0 0 0 / 0.6)),
+    repeating-linear-gradient(90deg, #3b0d05 0, #7c1f0b 22px, #b8340f 34px, #7c1f0b 46px, #3b0d05 68px);
+}
+
+/* The pointer's trailing ring; it swells and inverts over anything clickable. */
+@utility cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 101;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1.5px solid var(--color-fg);
+  border-radius: 9999px;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: width 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), height 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.25s, opacity 0.3s;
+  &[data-hover] {
+    width: 4rem;
+    height: 4rem;
+    background-color: var(--color-fg);
+  }
+}
+
 @utility scroll-progress {
   transform: scaleX(0);
   transform-origin: 0 50%;
