@@ -15,6 +15,7 @@ import { SeatMap, previewSeats } from '../../components/SeatMap';
 import { Badge, EmptyState, ErrorState, FieldError, Notice, PageLoader, Spinner } from '../../components/States';
 import { CountUp } from '../../components/Motion';
 import { useAuth } from '../../context/AuthContext';
+import { useSlidingIndicator } from '../../hooks/useSlidingIndicator';
 
 // <input type="datetime-local"> wants local time without a zone: 2026-11-08T19:00.
 const toLocalInput = (iso) => {
@@ -33,6 +34,8 @@ export function ManageEvent() {
   const [moveTo, setMoveTo] = useState(null); // datetime-local string while "Reschedule" is open
   const [moveError, setMoveError] = useState(null);
   const [tab, setTab] = useState('overview');
+  // Keyed on the event too: the tab row only exists once it has loaded.
+  const [tabRow, tabBar] = useSlidingIndicator(event ? tab : null, { axis: 'x' });
   const [dialog, setDialog] = useState(null); // 'publish' | 'delete' | 'cancel'
   const verified = useAuth().user?.verifiedHost;
   const [busy, setBusy] = useState(false);
@@ -192,9 +195,10 @@ export function ManageEvent() {
       ) : (
         <>
           {/* On phones the tabs scroll sideways; the faded right edge shows there are more. */}
-          <div className="-mr-4 mt-10 flex gap-6 overflow-x-auto border-b border-line pr-8 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] [scrollbar-width:none] sm:mr-0 sm:pr-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden" role="tablist">
+          <div ref={tabRow} className="relative -mr-4 mt-10 flex gap-6 overflow-x-auto border-b border-line pr-8 [mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] [scrollbar-width:none] sm:mr-0 sm:pr-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden" role="tablist">
+            <span ref={tabBar} className="slider bottom-0 left-0 h-0.5 bg-signal" aria-hidden />
             {[['overview', 'Overview'], ['report', 'How it went'], ['checkin', 'Check-in'], ['guests', 'Guest list'], ['addons', 'Add-ons'], ['promos', 'Promo codes']].map(([k, label]) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k}
+              <button key={k} type="button" role="tab" aria-selected={tab === k} data-active={tab === k}
                 onClick={(e) => {
                   setTab(k);
                   // Bring the chosen tab into view on phones without scrolling the page.
@@ -203,7 +207,7 @@ export function ManageEvent() {
                   const view = list.getBoundingClientRect();
                   list.scrollBy({ left: box.left + box.width / 2 - (view.left + view.width / 2), behavior: 'smooth' });
                 }}
-                className={`-mb-px whitespace-nowrap border-b-2 pb-3 font-mono text-xs font-medium uppercase tracking-[0.12em] transition-colors ${tab === k ? 'border-signal text-fg' : 'border-transparent text-muted hover:text-fg'}`}>
+                className={`whitespace-nowrap pb-3 font-mono text-xs font-medium uppercase tracking-[0.12em] transition-colors duration-300 ${tab === k ? 'text-fg' : 'text-muted hover:text-fg'}`}>
                 {label}
               </button>
             ))}

@@ -8,10 +8,13 @@ import { CityPicker } from './CityPicker';
 import { Logo } from './Logo';
 import { CurtainIntro, CursorFx } from './Stagecraft';
 import { useLinkTransitions } from '../hooks/useLinkTransitions';
+import { useSlidingIndicator } from '../hooks/useSlidingIndicator';
 
+// The underline under the current page is one bar that slides along the nav
+// (useSlidingIndicator in Layout), so the active link only changes colour.
 const navClass = ({ isActive }) =>
-  `relative px-3 py-2 font-mono text-[12px] font-medium uppercase tracking-[0.12em] transition-colors ${
-    isActive ? 'text-fg after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:bg-signal' : 'text-muted hover:text-fg'
+  `nav-link relative px-3 py-2 font-mono text-[12px] font-medium uppercase tracking-[0.12em] transition-colors duration-300 ${
+    isActive ? 'text-fg' : 'text-muted hover:text-fg'
   }`;
 
 // Navigating between pages should start at the top, like a normal website.
@@ -28,6 +31,7 @@ export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [nav, navBar] = useSlidingIndicator(pathname, { selector: '.nav-link[aria-current="page"]', axis: 'x' });
   useScrollReset();
   useLinkTransitions(navigate);
 
@@ -45,7 +49,8 @@ export function Layout() {
             <span className="hidden h-5 w-px bg-line sm:block" aria-hidden />
             <CityPicker />
           </div>
-          <nav className="flex items-center gap-1" aria-label="Main">
+          <nav ref={nav} className="relative flex items-center gap-1" aria-label="Main">
+            <span ref={navBar} className="slider -bottom-[13px] left-0 h-0.5 bg-signal [clip-path:inset(0_12px)]" aria-hidden />
             <span className="hidden sm:contents"><NavLink to="/" end className={navClass}>Events</NavLink></span>
             {user?.role === 'organizer' && <span className="hidden sm:contents"><NavLink to="/organizer" className={navClass}>Dashboard</NavLink></span>}
             {user?.role === 'attendee' && <span className="hidden sm:contents"><NavLink to="/saved" className={navClass}>Saved</NavLink></span>}

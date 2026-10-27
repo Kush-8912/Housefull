@@ -8,6 +8,7 @@ import { SeatMap, previewSeats } from '../../components/SeatMap';
 import { ErrorState, FieldError, PageLoader, Spinner } from '../../components/States';
 import { LAYOUT_TEMPLATES } from '../../lib/layoutTemplates';
 import { CANCELLATION_POLICIES, POLICY_SMALL_PRINT } from '../../lib/refundPolicy';
+import { useSlidingIndicator } from '../../hooks/useSlidingIndicator';
 
 const PALETTE = ['#e11d48', '#7c3aed', '#0891b2', '#ea580c', '#16a34a', '#ca8a04'];
 const MAX_CAPACITY = 1500;
@@ -59,6 +60,9 @@ export function EventEditor() {
   const [busy, setBusy] = useState(false);
   const [gen, setGen] = useState({ count: 3, seats: 12, tier: '' });
   const [tool, setTool] = useState('aisle');
+  // Both pickers appear once the form has loaded (it's null while an edit loads).
+  const [toolRow, toolPill] = useSlidingIndicator(form ? tool : null);
+  const [policyRow, policyBox] = useSlidingIndicator(form ? form.cancellationPolicy : null);
 
   useEffect(() => {
     if (!editing) return;
@@ -327,11 +331,12 @@ export function EventEditor() {
           <div className="min-w-0 border border-line bg-ink p-4 sm:p-6">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <p className="eyebrow">Live preview · click seats to edit</p>
-              <div className="grid w-full grid-cols-3 rounded-[3px] border border-line-strong p-0.5 sm:flex sm:w-auto" role="radiogroup" aria-label="Seat tool">
+              <div ref={toolRow} className="relative grid w-full grid-cols-3 rounded-[3px] border border-line-strong p-0.5 sm:flex sm:w-auto" role="radiogroup" aria-label="Seat tool">
+                <span ref={toolPill} className="slider left-0 top-0 rounded-[2px] bg-fg" aria-hidden />
                 {SEAT_TOOLS.map(({ id: t, label, icon: Icon }) => (
                   <button
-                    key={t} type="button" role="radio" aria-checked={tool === t} onClick={() => setTool(t)}
-                    className={`flex flex-col items-center justify-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.04em] transition-colors sm:flex-row sm:gap-1.5 sm:px-2.5 sm:text-[11px] sm:tracking-[0.08em] ${tool === t ? 'bg-fg text-ink' : 'text-muted hover:text-fg'}`}
+                    key={t} type="button" role="radio" aria-checked={tool === t} data-active={tool === t} onClick={() => setTool(t)}
+                    className={`relative flex flex-col items-center justify-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.04em] transition-colors duration-300 sm:flex-row sm:gap-1.5 sm:px-2.5 sm:text-[11px] sm:tracking-[0.08em] ${tool === t ? 'text-ink' : 'text-muted hover:text-fg'}`}
                   >
                     <Icon className="h-3.5 w-3.5" aria-hidden /> {label}
                   </button>
@@ -380,9 +385,10 @@ export function EventEditor() {
         </div>
         <fieldset className="md:col-span-3">
           <legend className="label">Cancellation policy</legend>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div ref={policyRow} className="relative grid gap-2 sm:grid-cols-3">
+            <span ref={policyBox} className="slider left-0 top-0 border border-signal bg-signal/10" aria-hidden />
             {Object.entries(CANCELLATION_POLICIES).map(([value, p]) => (
-              <label key={value} className={`cursor-pointer border px-4 py-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal ${form.cancellationPolicy === value ? 'border-signal bg-signal/10' : 'border-line-strong hover:border-faint'}`}>
+              <label key={value} data-active={form.cancellationPolicy === value} className={`relative cursor-pointer border px-4 py-3 transition-colors duration-300 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal ${form.cancellationPolicy === value ? 'border-transparent' : 'border-line-strong hover:border-faint'}`}>
                 <input type="radio" name="cancellationPolicy" value={value} className="sr-only" checked={form.cancellationPolicy === value} onChange={() => set({ cancellationPolicy: value })} />
                 <span className="block text-sm font-semibold text-fg">{p.label}</span>
                 <span className="mt-1 block text-xs text-muted">{p.summary}</span>

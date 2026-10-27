@@ -6,6 +6,7 @@ import { FieldError, Spinner } from '../components/States';
 import { PasswordChecklist } from '../components/PasswordChecklist';
 import { PasswordInput } from '../components/PasswordInput';
 import { GoogleButton } from '../components/GoogleButton';
+import { useSlidingIndicator } from '../hooks/useSlidingIndicator';
 import { passwordMeetsRules } from '../lib/passwordRules';
 import { Mask } from '../components/Motion';
 
@@ -114,6 +115,7 @@ export function RegisterPage() {
   const [tried, setTried] = useState(false);
   // New Google accounts get whichever role is picked above the form.
   const google = useGoogleSignIn(form.role);
+  const [roles, roleBox] = useSlidingIndicator(form.role);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -149,9 +151,10 @@ export function RegisterPage() {
         {error && !Object.keys(fe).length && <p className="border-l-2 border-stop bg-stop/10 px-3 py-2 text-sm text-fg" role="alert">{error.message}</p>}
         <fieldset>
           <legend className="label">I want to</legend>
-          <div className="grid grid-cols-2 gap-2">
+          <div ref={roles} className="relative grid grid-cols-2 gap-2">
+            <span ref={roleBox} className="slider left-0 top-0 border border-signal bg-signal/10" aria-hidden />
             {[['attendee', 'Buy tickets'], ['organizer', 'Host events']].map(([value, label]) => (
-              <label key={value} className={`cursor-pointer border px-3 py-3 text-center text-sm font-semibold transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal ${form.role === value ? 'border-signal bg-signal/10 text-fg' : 'border-line-strong text-muted hover:border-faint hover:text-fg'}`}>
+              <label key={value} data-active={form.role === value} className={`relative cursor-pointer border px-3 py-3 text-center text-sm font-semibold transition-colors duration-300 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal ${form.role === value ? 'border-transparent text-fg' : 'border-line-strong text-muted hover:border-faint hover:text-fg'}`}>
                 <input type="radio" name="role" value={value} className="sr-only" checked={form.role === value} onChange={() => setForm({ ...form, role: value })} />
                 {label}
               </label>

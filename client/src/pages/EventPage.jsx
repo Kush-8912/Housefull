@@ -16,6 +16,7 @@ import { ErrorState, FieldError, Notice, PageLoader, Spinner } from '../componen
 import { CountUp, Words } from '../components/Motion';
 import { usePointer } from '../hooks/usePointer';
 import { VerifiedBadge } from '../components/VerifiedBadge';
+import { useSlidingIndicator } from '../hooks/useSlidingIndicator';
 import { POLICY_SMALL_PRINT, policyOf } from '../lib/refundPolicy';
 
 const MAX_SEATS = 8; // fallback; each event says its own limit (maxPerOrder) and the server enforces it
@@ -473,6 +474,8 @@ function Reviews({ eventId }) {
   const [page, setPage] = useState(1);
   const [writing, setWriting] = useState(false);
   const [form, setForm] = useState(EMPTY_REVIEW);
+  // The Yes/No toggle only exists while the review form is open.
+  const [recommendRow, recommendPill] = useSlidingIndicator(`${writing}:${form.recommend}`);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const { user } = useAuth();
@@ -584,11 +587,12 @@ function Reviews({ eventId }) {
         </div>
 
         <p className="label mt-5">Would you recommend it to a friend?</p>
-        <div className="flex gap-2">
+        <div ref={recommendRow} className="relative flex gap-2">
+          <span ref={recommendPill} className={`slider left-0 top-0 rounded-[3px] ${form.recommend ? 'bg-go' : 'bg-stop'}`} aria-hidden />
           {[[true, 'Yes'], [false, 'No']].map(([v, label]) => (
-            <button key={label} type="button" aria-pressed={form.recommend === v}
+            <button key={label} type="button" aria-pressed={form.recommend === v} data-active={form.recommend === v}
               onClick={() => setForm((f) => ({ ...f, recommend: f.recommend === v ? null : v }))}
-              className={`btn px-4 py-2 ${form.recommend === v ? (v ? 'bg-go text-ink' : 'bg-stop text-ink') : 'border border-line-strong text-muted hover:text-fg'}`}>
+              className={`btn relative border px-4 py-2 ${form.recommend === v ? 'border-transparent text-ink' : 'border-line-strong text-muted hover:text-fg'}`}>
               {label}
             </button>
           ))}

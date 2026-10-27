@@ -10,6 +10,7 @@ import { EmptyState, ErrorState, Spinner } from '../components/States';
 import { CountUp, Mask, Scramble, Words } from '../components/Motion';
 import { LiveHouse } from '../components/LiveHouse';
 import { usePointer } from '../hooks/usePointer';
+import { useSlidingIndicator } from '../hooks/useSlidingIndicator';
 
 const WHEN = {
   any: { label: 'Any date' },
@@ -34,6 +35,7 @@ export function HomePage() {
   const [state, setState] = useState({ status: 'loading', data: null, error: null });
   const [reload, setReload] = useState(0);
   const hero = usePointer();
+  const [chipRow, chipPill] = useSlidingIndicator(category);
 
   const update = (patch) => {
     const next = new URLSearchParams(params);
@@ -152,7 +154,8 @@ export function HomePage() {
 
         <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-y border-line py-3">
           {/* Phones: one row of chips that scrolls sideways, edge to edge. */}
-          <div className="-mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-3 [scrollbar-width:none] sm:mx-[-0.25rem] sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Category">
+          <div ref={chipRow} className="relative -mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-3 [scrollbar-width:none] sm:mx-[-0.25rem] sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Category">
+            <span ref={chipPill} className="slider left-0 top-0 rounded-[3px] bg-fg" aria-hidden />
             <Chip active={!category} onClick={() => update({ category: '' })}>All</Chip>
             {Object.entries(CATEGORY_LABELS).map(([k, label]) => (
               <Chip key={k} active={category === k} onClick={() => update({ category: k })}>{label}</Chip>
@@ -263,14 +266,19 @@ function NextUpRow({ event: e, index }) {
   );
 }
 
+// The light pill behind the active chip is one element that slides between them.
 function Chip({ active, children, onClick }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        onClick();
+        e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); // phones: keep it in view
+      }}
       aria-pressed={active}
-      className={`shrink-0 whitespace-nowrap rounded-[3px] px-2.5 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.1em] transition-colors ${
-        active ? 'bg-fg text-ink' : 'text-muted hover:bg-ink-850 hover:text-fg'
+      data-active={active}
+      className={`relative shrink-0 whitespace-nowrap rounded-[3px] px-2.5 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.1em] transition-colors duration-300 ${
+        active ? 'text-ink' : 'text-muted hover:text-fg'
       }`}
     >
       {children}
