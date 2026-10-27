@@ -9,7 +9,7 @@ export function PageLoader({ label = 'Loading' }) {
     <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4" role="status">
       <span className="flex gap-1" aria-hidden>
         {[0, 1, 2, 3, 4].map((i) => (
-          <span key={i} className="h-3 w-3 animate-pulse-dot rounded-t-[4px] rounded-b-[1px] bg-signal" style={{ animationDelay: `${i * 0.15}s` }} />
+          <span key={i} className="h-3 w-3 animate-seat-bounce rounded-t-[4px] rounded-b-[1px] bg-signal" style={{ animationDelay: `${i * 0.1}s` }} />
         ))}
       </span>
       <span className="eyebrow">{label.replace(/…$/, '')}…</span>
@@ -20,7 +20,7 @@ export function PageLoader({ label = 'Loading' }) {
 export function ErrorState({ error, onRetry, title = 'Something went wrong' }) {
   const notFound = error?.status === 404;
   return (
-    <div className="mx-auto my-12 max-w-md border-l-2 border-warn bg-ink-900 p-8" role="alert">
+    <div className="mx-auto my-12 max-w-md animate-rise border-l-2 border-warn bg-ink-900 p-8" role="alert">
       <AlertTriangle className="h-6 w-6 text-warn" aria-hidden />
       <h2 className="display mt-4 text-3xl">{notFound ? 'Not found' : title}</h2>
       <p className="mt-2 text-sm text-muted">{error?.message ?? 'Please try again.'}</p>
@@ -34,7 +34,7 @@ export function ErrorState({ error, onRetry, title = 'Something went wrong' }) {
 export function EmptyState({ icon: Icon = Inbox, title, children, action }) {
   return (
     <div className="flex flex-col items-center border border-dashed border-line-strong px-6 py-16 text-center">
-      <Icon className="h-8 w-8 text-faint" strokeWidth={1.5} aria-hidden />
+      <Icon className="h-8 w-8 animate-float text-faint" strokeWidth={1.5} aria-hidden />
       <h3 className="display mt-4 text-2xl">{title}</h3>
       {children && <p className="mt-2 max-w-sm text-sm text-muted">{children}</p>}
       {action && <div className="mt-6">{action}</div>}

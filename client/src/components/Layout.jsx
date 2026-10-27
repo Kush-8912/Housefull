@@ -16,7 +16,8 @@ export function Logo({ className = '', compact = false }) {
   return (
     <span className={`flex items-center gap-2 ${className}`}>
       <svg viewBox="0 0 32 32" className="h-7 w-7" aria-hidden>
-        <path d="M9 17V11a7 7 0 0 1 14 0v6" fill="none" stroke="currentColor" strokeWidth="3" className="text-signal" />
+        {/* The shackle snaps shut on load and lifts when you hover the logo. */}
+        <path d="M9 17V11a7 7 0 0 1 14 0v6" fill="none" stroke="currentColor" strokeWidth="3" className="animate-lock text-signal transition-transform duration-300 group-hover:-translate-y-[3px]" />
         <rect x="6" y="16" width="20" height="6" rx="1" className="fill-signal" />
         <path d="M9 22v4M23 22v4" stroke="currentColor" strokeWidth="3" className="text-signal" />
       </svg>
@@ -31,9 +32,14 @@ function useScrollReset() {
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
 }
 
+// Each page fades in when you arrive. Keyed by the route's shape rather than
+// the exact URL, so moving between showtimes of one event doesn't remount it.
+const routeShape = (pathname) => pathname.replace(/[a-f0-9]{24}/g, ':id');
+
 export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   useScrollReset();
 
   return (
@@ -44,7 +50,7 @@ export function Layout() {
       <header className="sticky top-0 z-30 border-b border-line bg-ink/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-            <Link to="/" aria-label="SeatLock home" className="shrink-0"><Logo compact /></Link>
+            <Link to="/" aria-label="SeatLock home" className="group shrink-0"><Logo compact /></Link>
             <span className="hidden h-5 w-px bg-line sm:block" aria-hidden />
             <CityPicker />
           </div>
@@ -83,10 +89,13 @@ export function Layout() {
             )}
           </nav>
         </div>
+        <span className="scroll-progress absolute inset-x-0 -bottom-px h-0.5 bg-signal" aria-hidden />
       </header>
 
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-        <Outlet />
+        <div key={routeShape(pathname)} className="animate-page">
+          <Outlet />
+        </div>
       </main>
 
       <footer className="mt-16 border-t border-line">
@@ -144,9 +153,9 @@ function MobileMenu({ user, onLogout }) {
         {open ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
       </button>
       {open && (
-        <nav className="absolute inset-x-0 top-full border-b border-line-strong bg-ink-900 shadow-2xl shadow-black/60" aria-label="Menu">
-          {links.map(([to, label, end]) => (
-            <NavLink key={to} to={to} end={end} className={item}>
+        <nav className="absolute inset-x-0 top-full origin-top animate-[menu-drop_0.3s_cubic-bezier(0.2,0.7,0.2,1)] border-b border-line-strong bg-ink-900 shadow-2xl shadow-black/60" aria-label="Menu">
+          {links.map(([to, label, end], i) => (
+            <NavLink key={to} to={to} end={end} className={(a) => `${item(a)} animate-rise`} style={{ animationDelay: `${60 + i * 45}ms` }}>
               {label}
             </NavLink>
           ))}
