@@ -136,7 +136,7 @@ eventsRouter.get('/saved', requireAuth, asyncHandler(async (req, res) => {
 // Event detail + live seat map. Auth is optional here: a logged-in viewer gets
 // their own held seats flagged as `mine`, and owners can preview drafts.
 eventsRouter.get('/:id', validate(z.object({ id: objectId }), 'params'), asyncHandler(async (req, res) => {
-  const event = await Event.findById(req.params.id).populate('organizer', 'name');
+  const event = await Event.findById(req.params.id).populate('organizer', 'name hostVerification.verifiedAt');
   if (!event) throw AppError.notFound('Event');
 
   const viewer = verifyToken(req.cookies?.[AUTH_COOKIE]);
@@ -202,6 +202,10 @@ eventsRouter.patch('/:id', requireAuth, requireRole('organizer'), asyncHandler(a
 }));
 
 eventsRouter.post('/:id/publish', requireAuth, requireRole('organizer'), asyncHandler(async (req, res) => {
+  // Tickets only go on sale from hosts whose identity has been checked.
+  if (!req.user.hostVerification?.verifiedAt) {
+    throw new AppError(403, 'Verify your identity on your profile before publishing events', { code: 'HOST_NOT_VERIFIED' });
+  }
   const event = await loadOwnedEvent(req);
   const published = await publishEvent(event);
   res.json({ event: published });
