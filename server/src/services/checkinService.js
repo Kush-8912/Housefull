@@ -8,7 +8,7 @@ import { emitCheckin } from '../realtime/bus.js';
 // Doors are considered closed this long after the scheduled end.
 const CHECKIN_GRACE_AFTER_END_MS = 6 * 3_600_000;
 
-const invalid = () => AppError.badRequest('This QR code is not a valid SeatLock ticket', { code: 'INVALID_TICKET' });
+const invalid = () => AppError.badRequest('This QR code is not a valid Housefull ticket', { code: 'INVALID_TICKET' });
 
 function assertDoorsOpen(event) {
   if (event.status === 'cancelled') throw AppError.conflict('This event has been cancelled', { code: 'EVENT_CANCELLED' });

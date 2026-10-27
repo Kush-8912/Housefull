@@ -1,4 +1,4 @@
-# SeatLock
+# Housefull
 
 **Reserved-seat event ticketing where two people can never buy the same seat.**
 
@@ -8,7 +8,7 @@ Pick your exact seat on a live map, hold it for a few minutes while you pay, and
 |---|---|
 | **Live app** | _add your Render URL here after deploying (see [Deployment](#deployment))_ |
 | **Demo video** | _add link_ |
-| **Demo logins** | `attendee@seatlock.dev`, `friend@seatlock.dev` (a second attendee to transfer tickets to), `organizer@seatlock.dev`; password `demo1234`. Promo codes `EARLY20` and `STUDENT500`; the pottery workshop is seeded sold out (waitlist), Hamlet has three showtimes, several events have add-on menus, and *Sunday Jazz Brunch* already happened so `attendee@` can review it |
+| **Demo logins** | `attendee@housefull.dev`, `friend@housefull.dev` (a second attendee to transfer tickets to), `organizer@housefull.dev`; password `demo1234`. Promo codes `EARLY20` and `STUDENT500`; the pottery workshop is seeded sold out (waitlist), Hamlet has three showtimes, several events have add-on menus, and *Sunday Jazz Brunch* already happened so `attendee@` can review it |
 | **Test card** | `4242 4242 4242 4242`, any future expiry, any CVC ([more](#test-cards)) |
 
 ---
@@ -29,7 +29,7 @@ Small and mid-sized venues (comedy clubs, college auditoriums, indie gigs, theat
 
 ## Solution
 
-SeatLock models each seat as its own record and treats a purchase as a short **state machine** rather than a single form submit:
+Housefull models each seat as its own record and treats a purchase as a short **state machine** rather than a single form submit:
 
 ```
  available ──hold (atomic)──▶ held ──checkout──▶ sold ──cancel/refund──▶ available
@@ -46,7 +46,7 @@ SeatLock models each seat as its own record and treats a purchase as a short **s
 
 1. **Discover events.** Search by text, filter by category, city and date, with pagination. Filters live in the URL, so searches can be shared and survive a refresh.
 2. **Choose and hold seats.** The interactive seat map updates live over WebSockets as other people hold or buy seats. If a seat you selected is taken, you're told immediately. Holds are all-or-nothing and expire automatically.
-   - **Best available:** pick a number of seats (and optionally a tier) and SeatLock selects the side-by-side block closest to the front and centre.
+   - **Best available:** pick a number of seats (and optionally a tier) and Housefull selects the side-by-side block closest to the front and centre.
    - **Live viewer count:** the event page shows how many people are looking at it right now.
    - **Waitlist:** on a sold-out event, attendees can join a waitlist. When seats come back (a refund, an expired hold), everyone waiting gets an in-app notification and an email at the same time, then it's first come, first served.
    - **Add to calendar:** download an `.ics` file that works with Google Calendar, Apple Calendar and Outlook.
@@ -188,7 +188,7 @@ Notification  { user, type, title, body, link, readAt }
 | Ticket scanned twice / forged / wrong event / refunded | Distinct codes (`ALREADY_CHECKED_IN`, `INVALID_TICKET`, `WRONG_EVENT`, `TICKET_CANCELLED`) shown as "Do not admit" |
 | Invalid input | `400 VALIDATION_ERROR` with per-field messages rendered under each input |
 | Not logged in / wrong role / not the owner | 401 / 403; private resources owned by others return 404 to avoid revealing they exist |
-| Network offline | Client shows "Can't reach SeatLock"; the socket reconnects and re-syncs the seat map |
+| Network offline | Client shows "Can't reach Housefull"; the socket reconnects and re-syncs the seat map |
 | Unexpected server error | Logged server-side; client gets a generic message (no stack traces leaked) |
 | Bad config at boot | Server refuses to start and lists the missing or invalid environment variables |
 
@@ -197,7 +197,7 @@ Notification  { user, type, title, body, link, readAt }
 **Prerequisites:** Node.js 20+ and MongoDB, either running locally (`brew services start mongodb-community`) or as a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster.
 
 ```bash
-git clone <your-repo-url> seatlock && cd seatlock
+git clone <your-repo-url> housefull && cd housefull
 npm run install:all                     # installs server and client dependencies
 
 cp server/.env.example server/.env      # then fill in the secrets (see below)
@@ -236,7 +236,7 @@ All variables live in `server/.env` (template: [`server/.env.example`](server/.e
 | `APP_URL` | no | `CLIENT_ORIGIN` | Public URL of the app, used for links in emails (set to your Render URL in production) |
 | `SMTP_URL` | no | — | e.g. `smtps://user:pass@smtp.example.com:465`. Without it, development writes each email to `server/.mail-outbox/*.eml` (open with any mail app) instead of sending |
 | `BOOKING_FEE_PERCENT` | no | `5` | Booking fee on tickets (after discounts); 18% GST is added on the fee. `0` turns it off |
-| `MAIL_FROM` | no | `SeatLock <tickets@seatlock.dev>` | Sender address for emails |
+| `MAIL_FROM` | no | `Housefull <tickets@housefull.dev>` | Sender address for emails |
 
 Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. `.env` is git-ignored; no secrets are committed.
 
@@ -244,7 +244,7 @@ Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).t
 
 The app deploys as **one Render web service** (API + client) backed by **MongoDB Atlas**.
 
-1. **Atlas:** create a free M0 cluster, add a database user, allow network access from `0.0.0.0/0` (Render's free tier has no fixed IPs), and copy the connection string, e.g. `mongodb+srv://user:pass@cluster.mongodb.net/seatlock`.
+1. **Atlas:** create a free M0 cluster, add a database user, allow network access from `0.0.0.0/0` (Render's free tier has no fixed IPs), and copy the connection string, e.g. `mongodb+srv://user:pass@cluster.mongodb.net/housefull`.
 2. **Render:** *New → Blueprint*, then select this repository. [`render.yaml`](render.yaml) configures the build (`npm run install:all && npm run build`), the start command, the health check and auto-generated secrets.
 3. When prompted, set `MONGODB_URI` to your Atlas string.
 4. After the first deploy, seed the demo data from your machine: `MONGODB_URI="<atlas uri>" npm run seed`.
@@ -270,7 +270,7 @@ Use any future expiry and any 3-digit CVC. Free events skip payment entirely.
 ## Project Structure
 
 ```
-seatlock/
+housefull/
 ├── server/
 │   ├── src/
 │   │   ├── config/        env validation, db connection

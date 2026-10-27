@@ -21,7 +21,7 @@ export function Logo({ className = '', compact = false }) {
         <rect x="6" y="16" width="20" height="6" rx="1" className="fill-signal" />
         <path d="M9 22v4M23 22v4" stroke="currentColor" strokeWidth="3" className="text-signal" />
       </svg>
-      <span className={`display text-[26px] leading-none tracking-[-0.02em] ${compact ? 'hidden sm:inline' : ''}`}>SeatLock</span>
+      <span className={`display text-[26px] leading-none tracking-[-0.02em] ${compact ? 'hidden sm:inline' : ''}`}>Housefull</span>
     </span>
   );
 }
@@ -50,7 +50,7 @@ export function Layout() {
       <header className="sticky top-0 z-30 border-b border-line bg-ink/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-            <Link to="/" aria-label="SeatLock home" className="group shrink-0"><Logo compact /></Link>
+            <Link to="/" aria-label="Housefull home" className="group shrink-0"><Logo compact /></Link>
             <span className="hidden h-5 w-px bg-line sm:block" aria-hidden />
             <CityPicker />
           </div>

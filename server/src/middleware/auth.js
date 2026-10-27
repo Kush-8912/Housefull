@@ -3,7 +3,7 @@ import { env, isProd } from '../config/env.js';
 import { User } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
 
-export const AUTH_COOKIE = 'seatlock_token';
+export const AUTH_COOKIE = 'housefull_token';
 const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export function signToken(user) {

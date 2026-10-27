@@ -33,11 +33,11 @@ export function eventToIcs({ id, title, startsAt, durationMinutes, venue, descri
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//SeatLock//Tickets//EN',
+    'PRODID:-//Housefull//Tickets//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${id}@seatlock`,
+    `UID:${id}@housefull`,
     `DTSTAMP:${utc(now)}`,
     `DTSTART:${utc(startsAt)}`,
     `DTEND:${utc(end)}`,

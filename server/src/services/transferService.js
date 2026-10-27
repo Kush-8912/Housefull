@@ -22,7 +22,7 @@ export async function transferTicket({ user, ticketId, email }) {
 
   const recipient = await User.findOne({ email: email.trim().toLowerCase() });
   if (!recipient) {
-    throw AppError.badRequest('There’s no SeatLock account with that email. Ask them to sign up first.', { code: 'RECIPIENT_NOT_FOUND' });
+    throw AppError.badRequest('There’s no Housefull account with that email. Ask them to sign up first.', { code: 'RECIPIENT_NOT_FOUND' });
   }
   if (recipient._id.equals(user._id)) throw AppError.badRequest('This ticket is already yours', { code: 'RECIPIENT_INVALID' });
   if (recipient.role !== 'attendee') throw AppError.badRequest('Tickets can only be sent to attendee accounts', { code: 'RECIPIENT_INVALID' });

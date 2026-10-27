@@ -17,7 +17,7 @@ const schema = z.object({
   // Outgoing email. Without SMTP_URL, development writes each email to
   // server/.mail-outbox/*.eml instead of sending it.
   SMTP_URL: z.string().optional(),
-  MAIL_FROM: z.string().default('SeatLock <tickets@seatlock.dev>'),
+  MAIL_FROM: z.string().default('Housefull <tickets@housefull.dev>'),
   // Public URL of the app, used for links inside emails.
   APP_URL: z.string().optional(),
   // Optional: lets Claude write the copy for event reminder emails. Without it

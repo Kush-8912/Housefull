@@ -2,8 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 // The visitor's chosen city, remembered in this browser. Storage can be
 // unavailable (private mode, blocked site data); then it just isn't remembered.
-const KEY = 'seatlock:city';
-const EVT = 'seatlock:city-change';
+const KEY = 'housefull:city';
+const EVT = 'housefull:city-change';
 
 function read() {
   try {
@@ -15,7 +15,7 @@ function read() {
 
 // Set once the visitor has picked anything, including "All cities", so the
 // city picker only opens by itself on a first visit.
-const CHOSEN = 'seatlock:city-chosen';
+const CHOSEN = 'housefull:city-chosen';
 
 export function setCityPref(city) {
   try {

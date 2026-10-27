@@ -25,11 +25,11 @@ function layout({ preheader, heading, body, hero = null }) {
 <span style="display:none;max-height:0;overflow:hidden">${esc(preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1ebe0;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #cfc6b6">
-<tr><td style="background:#0c0b0a;padding:18px 24px;color:#ff5321;font-weight:800;font-size:20px;letter-spacing:-0.5px">SEATLOCK</td></tr>
+<tr><td style="background:#0c0b0a;padding:18px 24px;color:#ff5321;font-weight:800;font-size:20px;letter-spacing:-0.5px">HOUSEFULL</td></tr>
 ${heroRow}
 <tr><td style="padding:28px 24px 8px"><h1 style="margin:0;font-size:26px;line-height:1.15;text-transform:uppercase">${esc(heading)}</h1></td></tr>
 <tr><td style="padding:8px 24px 28px;font-size:15px;line-height:1.55">${body}</td></tr>
-<tr><td style="border-top:1px dashed #cfc6b6;padding:16px 24px;font-size:12px;color:#6f6a62">Demo payments only · no real money is charged. You're receiving this because of activity on your SeatLock account.</td></tr>
+<tr><td style="border-top:1px dashed #cfc6b6;padding:16px 24px;font-size:12px;color:#6f6a62">Demo payments only · no real money is charged. You're receiving this because of activity on your Housefull account.</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
@@ -39,11 +39,11 @@ export async function orderConfirmationEmail({ user, event, order, tickets }) {
   const attachments = await Promise.all(tickets.map(async (t) => ({
     filename: `ticket-${t.label}.png`,
     content: await QRCode.toBuffer(qrUrlFor(t._id), { width: 240, margin: 1 }),
-    cid: `qr-${t._id}@seatlock`,
+    cid: `qr-${t._id}@housefull`,
   })));
   const rows = tickets.map((t) => `<tr>
     <td style="padding:12px 0;border-bottom:1px solid #eee;vertical-align:top"><strong style="font-size:22px">${esc(t.label)}</strong><br><span style="color:#6f6a62;font-size:13px">${esc(t.tier)} · ${money(t.price)}</span></td>
-    <td align="right" style="padding:12px 0;border-bottom:1px solid #eee"><img src="cid:qr-${t._id}@seatlock" width="120" height="120" alt="QR code for seat ${esc(t.label)}"></td>
+    <td align="right" style="padding:12px 0;border-bottom:1px solid #eee"><img src="cid:qr-${t._id}@housefull" width="120" height="120" alt="QR code for seat ${esc(t.label)}"></td>
   </tr>`).join('');
   const line = (label, value, muted = true) => `<tr><td style="padding-top:6px;${muted ? 'color:#6f6a62' : ''}">${label}</td><td align="right" style="padding-top:6px">${value}</td></tr>`;
   const discount = [
@@ -75,7 +75,7 @@ export function ticketReceivedEmail({ recipient, sender, event, ticket }) {
     heading: 'A ticket for you',
     body: `<p style="margin:0">Hi ${esc(recipient.name)}, <strong>${esc(sender.name)}</strong> sent you seat <strong>${esc(ticket.label)}</strong> (${esc(ticket.tier)}) for <strong>${esc(event.title)}</strong>.</p>
 <p style="color:#6f6a62">${esc(when(event.startsAt))}<br>${esc(event.venue.name)}, ${esc(event.venue.city)}</p>
-<p>Your QR code is in your SeatLock account.</p>${button(url('/tickets'), 'Open my tickets')}`,
+<p>Your QR code is in your Housefull account.</p>${button(url('/tickets'), 'Open my tickets')}`,
   });
   const text = `${sender.name} sent you seat ${ticket.label} for ${event.title} (${when(event.startsAt)}). Your QR code: ${url('/tickets')}`;
   return { to: recipient.email, subject: `${sender.name} sent you a ticket for ${event.title}`, html, text };

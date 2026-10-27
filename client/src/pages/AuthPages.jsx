@@ -63,7 +63,7 @@ export function LoginPage() {
 
   const fe = error?.fieldErrors ?? {};
   return (
-    <AuthShell eyebrow="Box office · returning guests" poster={['Your seat', 'is waiting.']} title="Log in" subtitle="Welcome back to SeatLock.">
+    <AuthShell eyebrow="Box office · returning guests" poster={['Your seat', 'is waiting.']} title="Log in" subtitle="Welcome back to Housefull.">
       <form onSubmit={submit} noValidate className="space-y-5">
         {error && !Object.keys(fe).length && <p className="border-l-2 border-stop bg-stop/10 px-3 py-2 text-sm text-fg" role="alert">{error.message}</p>}
         <div>

@@ -1,5 +1,5 @@
 {
-  "name": "seatlock-server",
+  "name": "housefull-server",
   "version": "1.0.0",
   "main": "src/server.js",
   "directories": {

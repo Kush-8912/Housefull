@@ -1,6 +1,6 @@
 // Populates a database with demo accounts and events.
 // Usage: npm run seed            (refuses to run if users already exist)
-//        npm run seed -- --reset (wipes SeatLock collections first)
+//        npm run seed -- --reset (wipes Housefull collections first)
 import mongoose from 'mongoose';
 import { env } from '../src/config/env.js';
 import { User } from '../src/models/User.js';
@@ -111,10 +111,10 @@ async function main() {
 
   const passwordHash = await User.hashPassword(DEMO_PASSWORD);
   const [organizer, , friend] = await User.create([
-    { name: 'Riya Organiser', email: 'organizer@seatlock.dev', role: 'organizer', passwordHash },
-    { name: 'Aarav Attendee', email: 'attendee@seatlock.dev', role: 'attendee', passwordHash },
+    { name: 'Riya Organiser', email: 'organizer@housefull.dev', role: 'organizer', passwordHash },
+    { name: 'Aarav Attendee', email: 'attendee@housefull.dev', role: 'attendee', passwordHash },
     // A second attendee: someone to transfer tickets to, and the buyer who sold out the workshop.
-    { name: 'Meera Friend', email: 'friend@seatlock.dev', role: 'attendee', passwordHash },
+    { name: 'Meera Friend', email: 'friend@housefull.dev', role: 'attendee', passwordHash },
   ]);
 
   const published = {};
@@ -159,7 +159,7 @@ async function main() {
 
   // A show that already happened, so ratings & reviews can be demoed: both
   // attendees went and were scanned in; Meera left a review, Aarav hasn't yet.
-  const attendee = await User.findOne({ email: 'attendee@seatlock.dev' });
+  const attendee = await User.findOne({ email: 'attendee@housefull.dev' });
   const brunch = await publishEvent(await Event.create({
     organizer: organizer._id,
     title: 'Sunday Jazz Brunch',
@@ -199,7 +199,7 @@ async function main() {
   console.log(`Seeded ${live} published shows + ${drafts} draft.`);
   console.log('Promo codes: EARLY20 (Midnight Echoes), STUDENT500 (Frontend Forward). Pottery workshop is sold out.');
   console.log('Hamlet has 3 showtimes. Sunday Jazz Brunch already happened: log in as attendee@ to review it.');
-  console.log(`Log in as organizer@, attendee@ or friend@seatlock.dev with password "${DEMO_PASSWORD}".`);
+  console.log(`Log in as organizer@, attendee@ or friend@housefull.dev with password "${DEMO_PASSWORD}".`);
   await backgroundIdle();
 }
 

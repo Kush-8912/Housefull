@@ -10,11 +10,11 @@ const when = (d) => new Intl.DateTimeFormat('en-IN', {
 
 export function eventMeta(event, appUrl) {
   const url = `${appUrl}/events/${event._id}`;
-  const title = `${event.title} · SeatLock`;
+  const title = `${event.title} · Housefull`;
   const description = `${when(event.startsAt)} IST at ${event.venue.name}, ${event.venue.city}. Pick your exact seat.`;
   const tags = [
     ['og:type', 'website'],
-    ['og:site_name', 'SeatLock'],
+    ['og:site_name', 'Housefull'],
     ['og:title', title],
     ['og:description', description],
     ['og:url', url],

@@ -158,13 +158,13 @@ describe('badges and trending', () => {
 
 describe('share previews', () => {
   it('writes escaped event meta tags into the page', () => {
-    const html = '<html><head><meta name="description" content="generic" />\n<title>SeatLock</title>\n</head><body></body></html>';
+    const html = '<html><head><meta name="description" content="generic" />\n<title>Housefull</title>\n</head><body></body></html>';
     const out = renderEventPage(html, {
       _id: 'abc', title: 'Rock & "Roll" <Live>', startsAt: '2026-11-17T13:30:00Z', venue: { name: 'Hall', city: 'Pune' }, coverImageUrl: 'https://img.example/x.jpg',
-    }, 'https://seatlock.example');
-    expect(out).toContain('<title>Rock &amp; &quot;Roll&quot; &lt;Live&gt; · SeatLock</title>');
+    }, 'https://housefull.example');
+    expect(out).toContain('<title>Rock &amp; &quot;Roll&quot; &lt;Live&gt; · Housefull</title>');
     expect(out).toContain('<meta property="og:image" content="https://img.example/x.jpg" />');
-    expect(out).toContain('<meta property="og:url" content="https://seatlock.example/events/abc" />');
+    expect(out).toContain('<meta property="og:url" content="https://housefull.example/events/abc" />');
     expect(out).toContain('Tue, 17 Nov, 7:00 pm IST at Hall, Pune');
     expect(out).not.toContain('content="generic"');
   });

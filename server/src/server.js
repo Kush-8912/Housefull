@@ -16,7 +16,7 @@ async function main() {
   const stopSweeper = startHoldSweeper();
   const stopEventEmails = startEventEmailJob();
 
-  server.listen(env.PORT, () => console.log(`SeatLock API listening on :${env.PORT}`));
+  server.listen(env.PORT, () => console.log(`Housefull API listening on :${env.PORT}`));
 
   const shutdown = async (signal) => {
     console.log(`${signal} received, shutting down`);

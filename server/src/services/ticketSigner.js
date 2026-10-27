@@ -16,7 +16,7 @@ export function qrPayloadFor(ticketId) {
 }
 
 // What the printed QR encodes: a link to the scan page, so a guard's ordinary
-// phone camera opens SeatLock and checks the ticket in. The signed code is the
+// phone camera opens Housefull and checks the ticket in. The signed code is the
 // last path segment; the in-app scanner accepts either form.
 export function qrUrlFor(ticketId) {
   return `${env.APP_URL}/scan/${qrPayloadFor(ticketId)}`;

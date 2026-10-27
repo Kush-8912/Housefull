@@ -164,7 +164,7 @@ function TicketGrid({ tickets, event, onChanged }) {
         onConfirm={send}
         onClose={() => setSending(null)}
       >
-        <p>They need a SeatLock attendee account. Your QR code for this seat stops working and they get a new one. Refunds still go to you if the event is cancelled.</p>
+        <p>They need a Housefull attendee account. Your QR code for this seat stops working and they get a new one. Refunds still go to you if the event is cancelled.</p>
         <form className="mt-5" onSubmit={(e) => { e.preventDefault(); send(); }}>
           <label className="label" htmlFor="transfer-email">Their email</label>
           <input id="transfer-email" type="email" autoComplete="off" className={`input ${error ? 'input-error' : ''}`} value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} placeholder="friend@example.com" />

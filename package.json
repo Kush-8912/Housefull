@@ -1,5 +1,5 @@
 {
-  "name": "seatlock",
+  "name": "housefull",
   "private": true,
   "description": "Reserved-seat event ticketing with live seat holds, idempotent checkout and QR check-in",
   "scripts": {

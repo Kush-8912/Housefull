@@ -2,7 +2,7 @@
 # built React client (single origin). MongoDB is hosted on MongoDB Atlas.
 services:
   - type: web
-    name: seatlock
+    name: housefull
     runtime: node
     plan: free
     buildCommand: npm run install:all && npm run build

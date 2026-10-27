@@ -3,7 +3,7 @@ import { eventToIcs } from './calendar';
 
 const event = {
   id: 'abc123', title: 'Jazz, Blues; and \\ more', startsAt: '2026-11-17T13:30:00.000Z', durationMinutes: 150,
-  venue: { name: 'Seaside Amphitheatre', city: 'Mumbai' }, description: 'Line one\nLine two', url: 'https://seatlock.dev/events/abc123',
+  venue: { name: 'Seaside Amphitheatre', city: 'Mumbai' }, description: 'Line one\nLine two', url: 'https://housefull.dev/events/abc123',
 };
 
 describe('eventToIcs', () => {
@@ -19,7 +19,7 @@ describe('eventToIcs', () => {
   it('writes UTC start and end from the duration', () => {
     expect(ics).toContain('DTSTART:20261117T133000Z');
     expect(ics).toContain('DTEND:20261117T160000Z');
-    expect(ics).toContain('UID:abc123@seatlock');
+    expect(ics).toContain('UID:abc123@housefull');
   });
 
   it('escapes special characters', () => {

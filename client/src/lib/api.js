@@ -30,7 +30,7 @@ export async function api(path, { method = 'GET', body, headers = {}, signal } =
     });
   } catch (err) {
     if (err.name === 'AbortError') throw err;
-    throw new ApiError(0, { message: "Can't reach SeatLock. Check your connection and try again.", code: 'NETWORK' });
+    throw new ApiError(0, { message: "Can't reach Housefull. Check your connection and try again.", code: 'NETWORK' });
   }
 
   if (res.status === 204) return null;

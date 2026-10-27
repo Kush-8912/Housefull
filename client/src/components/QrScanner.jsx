@@ -59,7 +59,7 @@ export function QrScanner({ onScan, paused }) {
     setError(null);
     // Browsers only offer the camera on secure pages (https, or localhost).
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setError('This browser only allows the camera on a secure (https) page. Open SeatLock over https, or enter ticket codes manually below.');
+      setError('This browser only allows the camera on a secure (https) page. Open Housefull over https, or enter ticket codes manually below.');
       return;
     }
     setState('starting');
