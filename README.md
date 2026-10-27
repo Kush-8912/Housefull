@@ -8,7 +8,7 @@ Pick your exact seat on a live map, hold it for a few minutes while you pay, and
 |---|---|
 | **Live app** | _add your Render URL here after deploying (see [Deployment](#deployment))_ |
 | **Demo video** | _add link_ |
-| **Demo logins** | `attendee@seatlock.dev` / `organizer@seatlock.dev`, password `demo1234` |
+| **Demo logins** | `attendee@seatlock.dev`, `friend@seatlock.dev` (a second attendee to transfer tickets to), `organizer@seatlock.dev`; password `demo1234`. Promo codes `EARLY20` and `STUDENT500`; the pottery workshop is seeded sold out (waitlist), Hamlet has three showtimes, several events have add-on menus, and *Sunday Jazz Brunch* already happened so `attendee@` can review it |
 | **Test card** | `4242 4242 4242 4242`, any future expiry, any CVC ([more](#test-cards)) |
 
 ---
@@ -46,13 +46,28 @@ SeatLock models each seat as its own record and treats a purchase as a short **s
 
 1. **Discover events.** Search by text, filter by category, city and date, with pagination. Filters live in the URL, so searches can be shared and survive a refresh.
 2. **Choose and hold seats.** The interactive seat map updates live over WebSockets as other people hold or buy seats. If a seat you selected is taken, you're told immediately. Holds are all-or-nothing and expire automatically.
-3. **Pay and receive tickets.** A countdown shows how long the hold has left. Payment goes through a mock card processor with realistic declines. Retries are idempotent, and a declined card keeps your hold so you can try another card. You receive one QR ticket per seat.
+   - **Best available:** pick a number of seats (and optionally a tier) and SeatLock selects the side-by-side block closest to the front and centre.
+   - **Live viewer count:** the event page shows how many people are looking at it right now.
+   - **Waitlist:** on a sold-out event, attendees can join a waitlist. When seats come back (a refund, an expired hold), everyone waiting gets an in-app notification and an email at the same time, then it's first come, first served.
+   - **Add to calendar:** download an `.ics` file that works with Google Calendar, Apple Calendar and Outlook.
+   - **Showtimes:** one production can run several dates/times (e.g. three nights of a play). Each showtime has its own seat map and add-on stock; buyers switch between them on the event page, and the listing shows the production once with "+2 more shows".
+   - **Discovery:** pick your city once in the header (remembered in the browser); sort by soonest or **trending** (most tickets sold in the last 7 days). Cards carry labels computed from real data: *Filling fast* (≥5% of seats sold in 24 h), *Almost full* (≤10% left), *New* (on sale < 3 days).
+   - **Interested & Saved:** mark events you're interested in (public count) and find them under Saved.
+   - **Share:** native share sheet on phones, copy-link on desktop; in production, event links unfurl in WhatsApp/Slack with the title, date and cover image (meta tags are rendered server-side).
+3. **Pay and receive tickets.** A countdown shows how long the hold has left. Payment goes through a mock card processor with realistic declines. Retries are idempotent, and a declined card keeps your hold so you can try another card. You receive one QR ticket per seat, plus a confirmation email with the QR codes attached.
+   - **Bill like BookMyShow:** tickets, promo discount, add-ons, a booking fee (`BOOKING_FEE_PERCENT`, default 5% of the ticket amount after discounts) and 18% GST on that fee. Organizer revenue excludes the fee and GST. If an attendee cancels, everything except the booking fee is refunded; if the organizer cancels the event, everything is refunded.
+   - **Food & merch add-ons:** organizers set up a menu per showtime (price, stock, per-order limit); buyers add items at checkout. Stock is taken atomically at payment, so limited items can't be oversold, and comes back on a declined card or refund.
+   - **Promo codes:** apply a code at checkout for a percentage or flat discount (on ticket prices; codes work across all showtimes). Usage limits are enforced atomically, so a code with one use left can't be redeemed twice by racing buyers; a declined card or a refund gives the use back.
 4. **Manage and refund orders.** "My tickets" lists upcoming and past orders. You can cancel for a full refund up to 24 hours before the event, and the seats go straight back on sale.
+   - **Ticket transfer:** send a ticket to another attendee by email. Your QR code stops working and they get a new one (plus a notification and an email). If the organizer cancels the event, the refund still goes to whoever paid.
 5. **Organizer tools:**
    - **Event builder:** tiers, prices, and a row-by-row seating layout with a live preview. Draft, then publish, which locks the layout.
    - **Live dashboard:** revenue, sell-through, per-tier sales, daily sales chart and check-in rate.
    - **Door check-in:** camera QR scanner or a pasted code, with clear admit / do-not-admit results (already used, wrong event, refunded, forged).
-   - **Guest list search** and **event cancellation**, which refunds every buyer automatically.
+   - **Guest list search** with **CSV export** (spreadsheet-formula injection is neutralised), and **event cancellation**, which refunds every buyer automatically.
+   - **Promo codes:** create, limit, expire, switch off; the dashboard shows discounts given, the waitlist size and how many people are on the event page right now.
+6. **Ratings & reviews:** after a show, people who were actually scanned in at the door can rate it (1–5 stars + text), once per production, editable. The event page shows the average, the distribution and the reviews; cards show the rating.
+7. **Notifications:** a bell in the header lists waitlist alerts and received tickets, delivered live over a private per-user WebSocket room.
 
 ## Tech Stack
 
@@ -135,9 +150,20 @@ Seat      { event, row, number, label, tier, price, status: available|held|sold,
             hold, holdExpiresAt, order }                      unique(event, label)
 Hold      { user, event, seats[], expiresAt, status: active|converting|converted|released|expired }
                                                               unique(user, event) where status = active
-Order     { user, event, hold, items[{seat,label,tier,price}], amount, status: pending|paid|failed|cancelled|refunded,
-            idempotencyKey, payment{chargeId,last4,refundId} }  unique(user, idempotencyKey)
-Ticket    { order, event, user, seat, label, tier, status: valid|cancelled, checkedInAt, checkedInBy }
+Hold.promoCode                                                applied code, re-validated and redeemed at checkout
+Order     { user, event, hold, items[{seat,label,tier,price}], subtotal, discount, promo{id,code}, amount,
+            status: pending|paid|failed|cancelled|refunded, idempotencyKey, payment{chargeId,last4,refundId} }
+                                                              unique(user, idempotencyKey)
+Ticket    { order, event, user, seat, label, tier, status: valid|cancelled|transferred, checkedInAt, checkedInBy,
+            transferredFrom, transferredTo, transferredAt }
+Event.seriesId                                                links showtimes of one production
+Order    += addons[{addon,name,price,qty}], addonsTotal, bookingFee, gst, refundedAmount
+Addon     { event, name, kind: food|merch, price, stock, sold, maxPerOrder, active }
+Review    { series, event, user, rating 1-5, text }                          unique(series, user)
+Interest  { series, user }                                                   unique(series, user)
+PromoCode { event, code, kind: percent|flat, value, maxUses, uses, expiresAt, active }   unique(event, code)
+WaitlistEntry { event, user, status: waiting|notified, joinedAt, notifiedAt }          unique(event, user)
+Notification  { user, type, title, body, link, readAt }
 ```
 
 ### Key engineering decisions
@@ -207,6 +233,10 @@ All variables live in `server/.env` (template: [`server/.env.example`](server/.e
 | `HOLD_TTL_MINUTES` | no | `8` | How long seats stay held during checkout |
 | `MAX_SEATS_PER_HOLD` | no | `8` | Seat limit per order |
 | `CLIENT_ORIGIN` | no | `http://localhost:5173` | Only needed if the client is served from a different origin |
+| `APP_URL` | no | `CLIENT_ORIGIN` | Public URL of the app, used for links in emails (set to your Render URL in production) |
+| `SMTP_URL` | no | — | e.g. `smtps://user:pass@smtp.example.com:465`. Without it, development writes each email to `server/.mail-outbox/*.eml` (open with any mail app) instead of sending |
+| `BOOKING_FEE_PERCENT` | no | `5` | Booking fee on tickets (after discounts); 18% GST is added on the fee. `0` turns it off |
+| `MAIL_FROM` | no | `SeatLock <tickets@seatlock.dev>` | Sender address for emails |
 
 Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. `.env` is git-ignored; no secrets are committed.
 
@@ -269,5 +299,5 @@ seatlock/
 
 - **Payments are mocked.** `paymentService.js` mirrors a real gateway's contract, so integrating Stripe or Razorpay would replace only that file and move card entry to the provider's hosted fields (card data should not touch our server in production).
 - **Single-instance realtime.** Running several server instances would need the Socket.IO Redis adapter so broadcasts reach every instance.
-- **No email delivery.** Tickets are available in-app under "My tickets".
+- **Email needs an SMTP provider in production.** Without `SMTP_URL`, emails are written to local `.eml` files. Sending is fire-and-forget (a mail outage never blocks a checkout), so there are no retries yet; a queue would add those.
 - **One organizer account per event.** There's no separate door-staff role yet; the organizer scans tickets.
