@@ -12,7 +12,8 @@ import { notifyWaitlistLater } from './waitlistService.js';
 import { resolveAddonLines, linesTotal, reserveAddons, releaseAddons } from './addonService.js';
 import { bill, attendeeRefundFor } from './pricing.js';
 import { sendMail } from './mailer.js';
-import { orderConfirmationEmail } from './emails.js';
+import { orderConfirmationEmail, orderRefundedEmail } from './emails.js';
+import { announceCancellation, ticketHolders } from './showChanges.js';
 
 // Attendees can cancel for a refund until this long before the event starts.
 export const CANCELLATION_CUTOFF_HOURS = 24;
@@ -241,7 +242,7 @@ export async function cancelOrderByAttendee({ user, orderId }) {
   if (!order || !order.user.equals(user._id)) throw AppError.notFound('Order');
   if (order.status !== 'paid') throw AppError.conflict(`This order is ${order.status} and cannot be cancelled`);
 
-  const event = await Event.findById(order.event, 'startsAt');
+  const event = await Event.findById(order.event, 'title startsAt venue');
   const cutoff = new Date(event.startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * 3_600_000);
   if (new Date() > cutoff) {
     throw AppError.conflict(`Cancellations close ${CANCELLATION_CUTOFF_HOURS} hours before the event starts`, { code: 'CANCELLATION_CLOSED' });
@@ -255,6 +256,7 @@ export async function cancelOrderByAttendee({ user, orderId }) {
 
   const refunded = await refundOrder(order, { by: 'attendee', reopenSeats: true });
   if (!refunded) throw AppError.conflict('This order was already cancelled');
+  sendMail(orderRefundedEmail({ user, event, order: refunded }));
   return refunded;
 }
 
@@ -270,9 +272,13 @@ export async function cancelEvent(event) {
   const holds = await Hold.find({ event: event._id, status: 'active' });
   for (const h of holds) await releaseHold(h, 'released');
 
-  let refunded = 0;
+  // Who to tell, read before refunding voids the tickets.
+  const holders = await ticketHolders(event._id);
+  const refundedOrders = [];
   for await (const order of Order.find({ event: event._id, status: 'paid' }).cursor()) {
-    if (await refundOrder(order, { by: 'organizer', reopenSeats: false })) refunded += 1;
+    const done = await refundOrder(order, { by: 'organizer', reopenSeats: false });
+    if (done) refundedOrders.push(done);
   }
-  return { event: claimed, refunded };
+  await announceCancellation(claimed, holders, refundedOrders);
+  return { event: claimed, refunded: refundedOrders.length };
 }

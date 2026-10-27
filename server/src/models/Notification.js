@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export const NOTIFICATION_TYPES = ['waitlist_available', 'ticket_received'];
+export const NOTIFICATION_TYPES = ['waitlist_available', 'ticket_received', 'event_rescheduled', 'event_cancelled'];
 
 // In-app inbox item. Delivered live over the user's socket room when they are
 // online, and listed from the database when they next open the app.
