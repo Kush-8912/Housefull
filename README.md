@@ -81,8 +81,9 @@ Housefull models each seat as its own record and treats a purchase as a short **
    - **Reschedule** a published show: tickets and seats stay valid, every ticket holder is emailed the old and new time, and reminders follow the new time.
    - **Guest list search** with **CSV export** (spreadsheet-formula injection is neutralised), and **event cancellation**, which refunds every buyer automatically.
    - **Promo codes:** create, limit, expire, switch off; the dashboard shows discounts given, the waitlist size and how many people are on the event page right now.
-6. **Ratings & reviews:** after a show, people who were actually scanned in at the door can rate it (1–5 stars + text), once per production, editable. The event page shows the average, the distribution and the reviews; cards show the rating.
-7. **Notifications:** a bell in the header lists waitlist alerts and received tickets, delivered live over a private per-user WebSocket room.
+6. **Feedback forms with insights:** the organizer builds a short form for a production (star ratings, a 0–10 "would you recommend" with Net Promoter Score, single and multiple choice, written answers). **Suggest questions** drafts one for the event: written by Claude when `ANTHROPIC_API_KEY` is set, otherwise a template for the category. Only people who were scanned in at the door can answer, from *My tickets* or the post-show email. After answering, they see **how everyone answered** (anonymous totals with their own picks marked, shown once at least 3 people have replied, and never the written answers). The organizer gets live results and **Insights**: Claude reads every answer and writes what people loved, what to fix, real quotes and next steps (quotes are checked to be verbatim). Without an API key, a built-in analyser reads the scores and spots recurring themes in the written answers (sound, queues, food, seating…). Question types lock once anyone has answered, so earlier answers stay meaningful.
+7. **Ratings & reviews:** after a show, people who were actually scanned in at the door can rate it (1–5 stars + text), once per production, editable. The event page shows the average, the distribution and the reviews; cards show the rating.
+8. **Notifications:** a bell in the header lists waitlist alerts and received tickets, delivered live over a private per-user WebSocket room.
 
 ## Look and feel
 
