@@ -92,7 +92,8 @@ export function QrScanner({ onScan, paused }) {
     <div>
       {/* The scanner draws into this box, so it stays laid out (never display:none) and the video gets its real width. */}
       <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-[4px] bg-black">
-        <div id={regionId} className="h-full w-full [&_video]:h-full [&_video]:w-full [&_video]:object-cover" />
+        {/* html5-qrcode sizes its video in pixels inline; ! keeps it inside the box on narrow phones. */}
+        <div id={regionId} className="h-full w-full [&_video]:h-full! [&_video]:w-full! [&_video]:object-cover" />
         {state !== 'on' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink text-faint">
             <span className="absolute left-6 top-6 h-8 w-8 border-l-2 border-t-2 border-line-strong" aria-hidden />

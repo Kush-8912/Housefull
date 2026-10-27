@@ -389,17 +389,18 @@ function CheckIn({ eventId, disabled }) {
   if (disabled) return <EmptyState icon={XOctagon} title="Event cancelled">Check-in is disabled for cancelled events.</EmptyState>;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <section className="card p-5">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* min-w-0: let the columns shrink to the screen instead of growing to the camera video or a long name. */}
+      <section className="card min-w-0 p-5">
         <h2 className="eyebrow mb-5 text-fg">Scan ticket QR</h2>
         <QrScanner onScan={submit} paused={busy} />
         <form className="mt-6 flex gap-2" onSubmit={(e) => { e.preventDefault(); submit(code); }}>
           <label className="sr-only" htmlFor="code">Ticket code</label>
-          <input id="code" className="input font-mono" placeholder="Or paste a ticket code: SL1.…" value={code} onChange={(e) => setCode(e.target.value)} />
+          <input id="code" className="input min-w-0 flex-1 font-mono" placeholder="Or paste a ticket code: SL1.…" value={code} onChange={(e) => setCode(e.target.value)} />
           <button className="btn-secondary whitespace-nowrap" disabled={busy || !code.trim()}>{busy ? <Spinner className="h-4 w-4" /> : 'Check in'}</button>
         </form>
       </section>
-      <section aria-live="assertive">
+      <section className="min-w-0" aria-live="assertive">
         {!result ? (
           <div className="flex h-full min-h-64 flex-col items-center justify-center border border-dashed border-line-strong p-8 text-center"><p className="eyebrow">Waiting for scan</p><p className="mt-2 text-sm text-muted">The result shows up here, big enough to read from the door.</p></div>
         ) : (
